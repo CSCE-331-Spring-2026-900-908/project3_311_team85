@@ -17,7 +17,7 @@ export default function Portal() {
 
   return (
     <div style={styles.container}>
-      <h1>BRAAM Bubble Tea - System Portal</h1>
+      <h1> OCTAGON - System Portal</h1>
       <p>Select your interface to begin.</p>
       
       <div style={styles.grid}>

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { createServer } = require('node:http');
 
 const port = process.env.PORT || 3000;

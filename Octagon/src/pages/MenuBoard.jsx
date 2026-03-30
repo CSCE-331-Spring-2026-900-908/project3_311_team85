@@ -1,3 +1,6 @@
+import { useState, useEffect } from 'react';
+import { getCurrentWeather, getWeatherEmoji } from '../services/weatherService';
+
 const featuredItems = [
   { name: 'Brown Sugar Boba', description: 'Our signature slow-cooked tapioca with organic milk.', price: '$5.50' },
   { name: 'Matcha Latte', description: 'Premium ceremonial grade matcha.', price: '$5.00' },
@@ -5,13 +8,42 @@ const featuredItems = [
 ];
 
 export default function MenuBoard() {
+  const [weather, setWeather] = useState({
+    temperature: 75,
+    description: 'Clear',
+    location: 'College Station',
+    icon: '01d',
+    loading: true
+  });
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const weatherData = await getCurrentWeather();
+        setWeather({ ...weatherData, loading: false });
+      } catch (error) {
+        console.error('Failed to fetch weather:', error);
+        setWeather(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchWeather();
+    // Refresh weather every 10 minutes
+    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '4px solid #aa3bff', paddingBottom: '20px' }}>
         <h1 style={{ fontSize: '48px', margin: 0 }}>Menu</h1>
         <div style={{ fontSize: '24px', color: '#aaa' }}>
-          {/* Weather API will go here */}
-          🌤️ 75°F College Station
+          {weather.loading ? (
+            'Loading weather...'
+          ) : (
+            `${getWeatherEmoji(weather.icon)} ${weather.temperature}°F ${weather.location}`
+          )}
         </div>
       </header>
       

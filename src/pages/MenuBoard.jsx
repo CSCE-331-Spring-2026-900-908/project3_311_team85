@@ -17,7 +17,7 @@ export default function MenuBoard() {
       
       <main style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
         {featuredItems.map((item, idx) => (
-          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#222', padding: '30px', borderRadius: '16px' }}>
+          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#222', padding: '30px', borderRadius: '16px', transition: 'transform 0.1s' }} onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.02)')} onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}>
             <div>
               <h2 style={{ fontSize: '36px', margin: '0 0 10px 0', color: '#aa3bff' }}>{item.name}</h2>
               <p style={{ fontSize: '20px', color: '#ccc', margin: 0 }}>{item.description}</p>

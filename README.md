@@ -14,3 +14,11 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Project Overview
+
+Octagon is a state of the art renown software as a service point of sale ssystem
+
+This system blends a an intutive views like the cashier, manager, and customer view into a seamless app that contains useful web API's. 
+
+A main standout of this project is the easy to use modern UI/UX elements and seamless integration with backend resources.

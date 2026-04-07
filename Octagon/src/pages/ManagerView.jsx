@@ -1,3 +1,6 @@
+import LanguageToggle from '../components/LanguageToggle';
+import { useI18n } from '../i18n/I18nProvider';
+
 const mockInventory = [
   { id: 101, item: 'Tapioca Pearls', stock: '15 lbs', status: 'Good' },
   { id: 102, item: 'Black Tea Leaves', stock: '2 lbs', status: 'Low' },
@@ -6,19 +9,22 @@ const mockInventory = [
 ];
 
 export default function ManagerView() {
+  const { t } = useI18n();
+
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
-      <h1>Manager Dashboard</h1>
-      <p style={{ color: '#666', marginBottom: '20px' }}>Inventory Management</p>
+    <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto', position: 'relative' }}>
+      <LanguageToggle />
+      <h1>{t('manager.title')}</h1>
+      <p style={{ color: '#666', marginBottom: '20px' }}>{t('manager.subtitle')}</p>
       
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
           <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #ddd' }}>
-            <th style={{ padding: '12px' }}>ID</th>
-            <th style={{ padding: '12px' }}>Item Name</th>
-            <th style={{ padding: '12px' }}>Current Stock</th>
-            <th style={{ padding: '12px' }}>Status</th>
-            <th style={{ padding: '12px' }}>Actions</th>
+            <th style={{ padding: '12px' }}>{t('manager.table.id')}</th>
+            <th style={{ padding: '12px' }}>{t('manager.table.itemName')}</th>
+            <th style={{ padding: '12px' }}>{t('manager.table.currentStock')}</th>
+            <th style={{ padding: '12px' }}>{t('manager.table.status')}</th>
+            <th style={{ padding: '12px' }}>{t('manager.table.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -31,7 +37,7 @@ export default function ManagerView() {
                 <strong>{row.status}</strong>
               </td>
               <td style={{ padding: '12px' }}>
-                <button style={{ padding: '6px 12px', cursor: 'pointer' }}>Update</button>
+                <button style={{ padding: '6px 12px', cursor: 'pointer' }}>{t('manager.table.update')}</button>
               </td>
             </tr>
           ))}

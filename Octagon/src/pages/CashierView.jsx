@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useA11y } from '../a11y/A11yProvider';
 import { useI18n } from '../i18n/I18nProvider';
 
 //  test mock data
@@ -12,6 +14,7 @@ const mockMenu = [
 
 export default function CashierView() {
   const { t } = useI18n();
+  const { textSize } = useA11y();
   const [orderTicket, setOrderTicket] = useState([]);
 
   const addItem = (item) => setOrderTicket([...orderTicket, item]);
@@ -20,8 +23,9 @@ export default function CashierView() {
   const total = orderTicket.reduce((sum, item) => sum + item.price, 0);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif', backgroundColor: '#eef2f3', position: 'relative' }}>
+    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif', backgroundColor: '#eef2f3', position: 'relative', fontSize: textSize === 'large' ? '1.125rem' : '1rem', lineHeight: 1.3 }}>
       <LanguageToggle />
+      <TextSizeToggle />
       {/* Quick Add Menu */}
       <div style={{ flex: 3, padding: '20px' }}>
         <h2>{t('cashier.title')}</h2>

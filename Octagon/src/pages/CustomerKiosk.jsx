@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useA11y } from '../a11y/A11yProvider';
 import { useI18n } from '../i18n/I18nProvider';
 
 const mockMenu = [
@@ -13,6 +15,7 @@ const mockMenu = [
 
 export default function CustomerKiosk() {
   const { t } = useI18n();
+  const { textSize } = useA11y();
   const [cart, setCart] = useState([]);
 
   const addToCart = (item) => setCart([...cart, item]);
@@ -20,8 +23,9 @@ export default function CustomerKiosk() {
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif', position: 'relative' }}>
+    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif', position: 'relative', fontSize: textSize === 'large' ? '1.125rem' : '1rem', lineHeight: 1.3 }}>
       <LanguageToggle />
+      <TextSizeToggle />
       {/* Menu Grid */}
       <div style={{ flex: 2, padding: '20px', backgroundColor: '#f9f9f9' }}>
         <h2>{t('customer.title')}</h2>
@@ -30,7 +34,7 @@ export default function CustomerKiosk() {
             <button 
               key={item.id} 
               onClick={() => addToCart(item)}
-              style={{ padding: '30px', fontSize: '18px', borderRadius: '12px', border: '1px solid #ddd', cursor: 'pointer', backgroundColor: 'white' }}
+              style={{ padding: '30px', fontSize: '1.125rem', borderRadius: '12px', border: '1px solid #ddd', cursor: 'pointer', backgroundColor: 'white' }}
             >
               <strong>{item.name}</strong><br/>
               ${item.price.toFixed(2)}
@@ -45,7 +49,7 @@ export default function CustomerKiosk() {
         <div style={{ flexGrow: 1, overflowY: 'auto' }}>
           {cart.length === 0 ? <p>{t('customer.emptyCart')}</p> : null}
           {cart.map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0', fontSize: '18px', gap: '10px' }}>
+            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0', fontSize: '1.125rem', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
                 <button
@@ -62,7 +66,7 @@ export default function CustomerKiosk() {
                     borderRadius: 10,
                     cursor: 'pointer',
                     fontWeight: 700,
-                    fontSize: 14,
+                    fontSize: '0.875rem',
                   }}
                 >
                   {t('customer.remove')}
@@ -74,7 +78,7 @@ export default function CustomerKiosk() {
         </div>
         <div style={{ borderTop: '2px solid #333', padding: '20px 0' }}>
           <h3>{t('customer.total')}: ${total.toFixed(2)}</h3>
-          <button style={{ width: '100%', padding: '15px', fontSize: '20px', backgroundColor: '#aa3bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          <button style={{ width: '100%', padding: '15px', fontSize: '1.25rem', backgroundColor: '#aa3bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
             {t('customer.payNow')}
           </button>
         </div>

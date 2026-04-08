@@ -1,12 +1,22 @@
 import { Link } from 'react-router-dom';
 import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useA11y } from '../a11y/A11yProvider';
 import { useI18n } from '../i18n/I18nProvider';
 
 export default function Portal() {
   const { t } = useI18n();
+  const { textSize } = useA11y();
 
   const styles = {
-    container: { textAlign: 'center', padding: '50px', fontFamily: 'sans-serif', position: 'relative' },
+    container: {
+      textAlign: 'center',
+      padding: '50px',
+      fontFamily: 'sans-serif',
+      position: 'relative',
+      fontSize: textSize === 'large' ? '1.125rem' : '1rem',
+      lineHeight: 1.3,
+    },
     grid: { display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginTop: '30px' },
     card: { 
       padding: '30px', 
@@ -22,6 +32,7 @@ export default function Portal() {
   return (
     <div style={styles.container}>
       <LanguageToggle />
+      <TextSizeToggle />
       <h1>{t('portal.title')}</h1>
       <p>{t('portal.selectInterface')}</p>
       

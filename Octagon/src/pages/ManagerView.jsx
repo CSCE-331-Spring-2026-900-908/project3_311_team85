@@ -1,4 +1,6 @@
 import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useA11y } from '../a11y/A11yProvider';
 import { useI18n } from '../i18n/I18nProvider';
 
 const mockInventory = [
@@ -10,10 +12,12 @@ const mockInventory = [
 
 export default function ManagerView() {
   const { t } = useI18n();
+  const { textSize } = useA11y();
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto', position: 'relative' }}>
+    <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto', position: 'relative', fontSize: textSize === 'large' ? '1.125rem' : '1rem', lineHeight: 1.3 }}>
       <LanguageToggle />
+      <TextSizeToggle />
       <h1>{t('manager.title')}</h1>
       <p style={{ color: '#666', marginBottom: '20px' }}>{t('manager.subtitle')}</p>
       

@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useI18n } from '../i18n/I18nProvider';
+import { useA11y } from '../a11y/A11yProvider';
 
 export default function ManagerView() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+  const { textSize } = useA11y();
+  
+  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
   
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -41,7 +49,7 @@ export default function ManagerView() {
 
   // --- STYLES (Matching the provided UI aesthetic) ---
   const styles = {
-    page: { backgroundColor: '#fcfcfc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333' },
+    page: { backgroundColor: '#fcfcfc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333', fontSize: baseFontSize },
     mainHeading: { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '36px', textAlign: 'center', marginBottom: '40px', color: '#1a1a1a' },
     card: { backgroundColor: '#fff', borderRadius: '12px', padding: '30px', boxShadow: '0 8px 30px rgba(0,0,0,0.04)', border: '1px solid #f0f0f0' },
     floatingNav: { 
@@ -83,16 +91,18 @@ export default function ManagerView() {
   // --- DASHBOARD SCREEN ---
   return (
     <div style={{ ...styles.page, padding: '60px 20px 120px' }}>
+      <LanguageToggle />
+      <TextSizeToggle />
       
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        <h1 style={styles.mainHeading}>Dashboard & Operations</h1>
+        <h1 style={styles.mainHeading}>{t('manager.title')}</h1>
 
         <div style={styles.card}>
           {activeTab === 'inventory' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ fontSize: '22px', color: '#2d3748', margin: 0 }}>Inventory Levels</h2>
-                <button style={{ padding: '8px 16px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>+ Add Item</button>
+                <h2 style={{ fontSize: '22px', color: '#2d3748', margin: 0 }}>{t('manager.inventoryLevels')}</h2>
+                <button style={{ padding: '8px 16px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>{t('manager.addItem')}</button>
               </div>
               
               {loading ? (

@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useI18n } from '../i18n/I18nProvider';
+import { useA11y } from '../a11y/A11yProvider';
 
 export default function CustomerKiosk() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+  const { textSize } = useA11y();
+  
+  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
   
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,19 +43,21 @@ export default function CustomerKiosk() {
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto', fontSize: baseFontSize }}>
+      <LanguageToggle />
+      <TextSizeToggle />
       <button 
         onClick={() => navigate('/')} 
         style={{ marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '5px' }}
       >
-        ← Back to Portal
+        ← {t('common.backToPortal')}
       </button>
 
       <div style={{ display: 'flex', gap: '40px' }}>
         <div style={{ flex: '2' }}>
-          <h1>Order Here</h1>
+          <h1>{t('customer.title')}</h1>
           {loading ? (
-            <p>Loading menu...</p>
+            <p>{t('common.loading')}</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
               {menuItems.map((item) => (
@@ -65,9 +75,9 @@ export default function CustomerKiosk() {
         </div>
 
         <div style={{ flex: '1', backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
-          <h2>Your Cart</h2>
+          <h2>{t('customer.yourOrder')}</h2>
           {cart.length === 0 ? (
-            <p style={{ color: '#888' }}>Tap items to add to cart</p>
+            <p style={{ color: '#888' }}>{t('customer.emptyCart')}</p>
           ) : (
             <>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0' }}>
@@ -79,11 +89,11 @@ export default function CustomerKiosk() {
                 ))}
               </ul>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2em', fontWeight: 'bold', marginBottom: '20px' }}>
-                <span>Total:</span>
+                <span>{t('customer.total')}:</span>
                 <span>${calculateTotal()}</span>
               </div>
               <button style={{ width: '100%', padding: '15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1.1em', cursor: 'pointer' }}>
-                Checkout
+                {t('customer.payNow')}
               </button>
             </>
           )}

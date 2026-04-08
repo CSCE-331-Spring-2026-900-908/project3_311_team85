@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentWeather, getWeatherEmoji } from '../services/weatherService';
+import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useI18n } from '../i18n/I18nProvider';
+import { useA11y } from '../a11y/A11yProvider';
 
 export default function MenuBoard() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+  const { textSize } = useA11y();
+  
+  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
   
   // Weather State
   const [weather, setWeather] = useState({
@@ -56,13 +64,15 @@ export default function MenuBoard() {
   }, []);
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontSize: baseFontSize }}>
+      <LanguageToggle />
+      <TextSizeToggle />
       
       <button 
         onClick={() => navigate('/')} 
         style={{ alignSelf: 'flex-start', marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#333', color: '#fff', border: '1px solid #555', borderRadius: '5px' }}
       >
-        ← Back to Portal
+        ← {t('common.backToPortal')}
       </button>
 
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '4px solid #aa3bff', paddingBottom: '20px' }}>

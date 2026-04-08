@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import LanguageToggle from '../components/LanguageToggle';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useI18n } from '../i18n/I18nProvider';
+import { useA11y } from '../a11y/A11yProvider';
 
 export default function CashierView() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+  const { textSize } = useA11y();
+  
+  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
   
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,21 +78,23 @@ export default function CashierView() {
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7f6' }}>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7f6', fontSize: baseFontSize }}>
+      <LanguageToggle />
+      <TextSizeToggle />
       
       <button 
         onClick={() => navigate('/')} 
         style={{ width: 'fit-content', marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '5px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}
       >
-        ← Back to Portal
+        ← {t('common.backToPortal')}
       </button>
 
       <div style={{ display: 'flex', gap: '20px', flex: '1', overflow: 'hidden' }}>
         
         <div style={{ flex: '3', overflowY: 'auto', paddingRight: '10px' }}>
-          <h2 style={{ marginTop: 0 }}>Cashier POS</h2>
+          <h2 style={{ marginTop: 0 }}>{t('cashier.title')}</h2>
           {loading ? (
-            <p>Loading POS data...</p>
+            <p>{t('common.loading')}</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '15px' }}>
               {menuItems.map((item) => (
@@ -107,12 +117,12 @@ export default function CashierView() {
 
         <div style={{ flex: '1', backgroundColor: '#fff', border: '2px solid #333', borderRadius: '8px', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <div style={{ backgroundColor: '#333', color: '#fff', padding: '15px', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}>
-            Current Ticket
+            {t('cashier.ticketTitle')}
           </div>
           
           <div style={{ flex: '1', overflowY: 'auto', padding: '15px' }}>
             {currentTicket.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>Ticket is empty</p>
+              <p style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>{t('cashier.ticketEmpty')}</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {currentTicket.map((item, index) => (
@@ -127,7 +137,7 @@ export default function CashierView() {
 
           <div style={{ borderTop: '2px solid #eee', padding: '20px', backgroundColor: '#f9f9f9', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px' }}>
-              <span>Total:</span>
+              <span>{t('cashier.total')}:</span>
               <span>${calculateTotal()}</span>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -135,13 +145,13 @@ export default function CashierView() {
                 onClick={clearTicket} 
                 style={{ flex: '1', padding: '15px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}
               >
-                Void
+                {t('cashier.void')}
               </button>
               <button 
                 onClick={handleCheckout} 
                 style={{ flex: '2', padding: '15px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}
               >
-                Pay & Submit
+                {t('cashier.submitOrder')}
               </button>
             </div>
           </div>

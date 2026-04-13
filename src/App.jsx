@@ -6,22 +6,25 @@ import CustomerKiosk from './pages/CustomerKiosk';
 import MenuBoard from './pages/MenuBoard';
 import { I18nProvider } from './i18n/I18nProvider';
 import { A11yProvider } from './a11y/A11yProvider';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
-    <I18nProvider>
-      <A11yProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Portal />} />
-            <Route path="/manager" element={<ManagerView />} />
-            <Route path="/cashier" element={<CashierView />} />
-            <Route path="/customer" element={<CustomerKiosk />} />
-            <Route path="/menu-board" element={<MenuBoard />} />
-          </Routes>
-        </BrowserRouter>
-      </A11yProvider>
-    </I18nProvider>
+    <AuthProvider>
+      <I18nProvider>
+        <A11yProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Portal />} />
+              <Route path="/manager" element={<ManagerView />} />
+              <Route path="/cashier" element={<CashierView />} />
+              <Route path="/customer" element={<CustomerKiosk />} />
+              <Route path="/menu-board" element={<MenuBoard />} />
+            </Routes>
+          </BrowserRouter>
+        </A11yProvider>
+      </I18nProvider>
+    </AuthProvider>
   );
 }
 

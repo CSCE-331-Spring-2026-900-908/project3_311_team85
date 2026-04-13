@@ -1,45 +1,39 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import LanguageToggle from '../components/LanguageToggle';
-import TextSizeToggle from '../components/TextSizeToggle';
-import { useI18n } from '../i18n/I18nProvider';
-import { useA11y } from '../a11y/A11yProvider';
 
 export default function ManagerView() {
   const navigate = useNavigate();
-  const { t } = useI18n();
-  const { textSize } = useA11y();
-  
-  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
   
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
-  // Data State
-  const [inventory, setInventory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Tab & Data State
   const [activeTab, setActiveTab] = useState('inventory');
+  const [inventory, setInventory] = useState([]);
+  
+  // Sales Report State
+  const [salesData, setSalesData] = useState([]);
+  const [salesDates, setSalesDates] = useState({ start: '', end: '' });
 
-  // Fetch Inventory from PostgreSQL
+  // X/Z Report State
+  const [xReport, setXReport] = useState(null);
+  const [zReport, setZReport] = useState(null);
+
+  // New Menu Item State
+  const [newItem, setNewItem] = useState({ name: '', price: '', ingredients: '' });
+
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchInventory = async () => {
-      try {
-        const response = await fetch('/api/inventory');
-        if (!response.ok) throw new Error('Failed to fetch inventory');
-        const data = await response.json();
-        setInventory(data);
-      } catch (error) {
-        console.error('Error fetching inventory:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInventory();
+    if (isAuthenticated) fetchInventory();
   }, [isAuthenticated]);
+
+  const fetchInventory = async () => {
+    try {
+      const res = await fetch('/api/inventory');
+      const data = await res.json();
+      setInventory(data);
+    } catch (err) { console.error(err); }
+  };
 
   const handleGoogleLogin = (e) => {
     e.preventDefault();
@@ -47,9 +41,80 @@ export default function ManagerView() {
     setIsAuthenticated(true);
   };
 
-  // --- STYLES (Matching the provided UI aesthetic) ---
+  // --- REPORTING FUNCTIONS ---
+  const generateSalesReport = async () => {
+    if (!salesDates.start || !salesDates.end) {
+      alert('Please select both start and end dates');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/reports/sales?start=${salesDates.start}&end=${salesDates.end}`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Sales report error');
+      }
+      const data = await res.json();
+      setSalesData(data);
+    } catch (err) {
+      console.error('Error fetching sales report:', err);
+      alert('Failed to generate sales report: ' + err.message);
+    }
+  };
+
+  const generateXReport = async () => {
+    try {
+      const res = await fetch('/api/reports/xreport');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'X-report error');
+      }
+      const data = await res.json();
+      setXReport(data);
+    } catch (err) {
+      console.error('Error fetching X-report:', err);
+      alert('Failed to generate X-report: ' + err.message);
+    }
+  };
+
+  const generateZReport = async () => {
+    try {
+      const res = await fetch('/api/reports/zreport', { method: 'POST' });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Z-report error');
+      }
+      const data = await res.json();
+      setZReport(data.data);
+      alert(data.message);
+    } catch (err) {
+      console.error('Error generating Z-report:', err);
+      alert('Failed to generate Z-report: ' + err.message);
+    }
+  };
+
+  const handleAddMenuItem = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemName: newItem.name,
+          price: parseFloat(newItem.price),
+          ingredientsText: newItem.ingredients
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        setNewItem({ name: '', price: '', ingredients: '' });
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  // --- STYLES ---
   const styles = {
-    page: { backgroundColor: '#fcfcfc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333', fontSize: baseFontSize },
+    page: { backgroundColor: '#fcfcfc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333' },
     mainHeading: { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '36px', textAlign: 'center', marginBottom: '40px', color: '#1a1a1a' },
     card: { backgroundColor: '#fff', borderRadius: '12px', padding: '30px', boxShadow: '0 8px 30px rgba(0,0,0,0.04)', border: '1px solid #f0f0f0' },
     floatingNav: { 
@@ -63,102 +128,165 @@ export default function ManagerView() {
       border: 'none', padding: '10px 15px', borderRadius: '25px', cursor: 'pointer', fontSize: '15px',
       fontWeight: isActive ? '600' : '400', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px'
     }),
-    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
+    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '20px' },
     th: { padding: '15px', borderBottom: '2px solid #eaeaea', color: '#4a5568', fontWeight: '600', fontSize: '15px' },
-    td: { padding: '15px', borderBottom: '1px solid #f0f0f0', color: '#2d3748', fontSize: '15px' }
+    td: { padding: '15px', borderBottom: '1px solid #f0f0f0', color: '#2d3748', fontSize: '15px' },
+    input: { padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e0', width: '100%', marginBottom: '15px', boxSizing: 'border-box' }
   };
 
-  // --- LOGIN SCREEN ---
   if (!isAuthenticated) {
     return (
       <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ ...styles.card, maxWidth: '400px', width: '100%', textAlign: 'center' }}>
           <h1 style={{ ...styles.mainHeading, fontSize: '32px', marginBottom: '10px' }}>Manager Portal</h1>
           <p style={{ color: '#718096', marginBottom: '30px', lineHeight: '1.6' }}>Please authenticate to access the dashboard securely.</p>
-          
-          <button onClick={handleGoogleLogin} style={{ width: '100%', padding: '14px', backgroundColor: '#fff', color: '#4a5568', border: '1px solid #cbd5e0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', transition: 'box-shadow 0.2s' }}>
+          <button onClick={handleGoogleLogin} style={{ width: '100%', padding: '14px', backgroundColor: '#fff', color: '#4a5568', border: '1px solid #cbd5e0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
             <img src="https://www.google.com/favicon.ico" alt="Google Logo" style={{ width: '18px' }} />
             Sign in with Google
-          </button>
-          <button onClick={() => navigate('/')} style={{ marginTop: '20px', background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: '14px' }}>
-            ← Return to Public Portal
           </button>
         </div>
       </div>
     );
   }
 
-  // --- DASHBOARD SCREEN ---
   return (
     <div style={{ ...styles.page, padding: '60px 20px 120px' }}>
-      <LanguageToggle />
-      <TextSizeToggle />
-      
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        <h1 style={styles.mainHeading}>{t('manager.title')}</h1>
+        <h1 style={styles.mainHeading}>Dashboard & Operations</h1>
 
         <div style={styles.card}>
+          
+          {/* INVENTORY TAB */}
           {activeTab === 'inventory' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ fontSize: '22px', color: '#2d3748', margin: 0 }}>{t('manager.inventoryLevels')}</h2>
-                <button style={{ padding: '8px 16px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>{t('manager.addItem')}</button>
-              </div>
-              
-              {loading ? (
-                <p style={{ textAlign: 'center', color: '#a0aec0', padding: '40px' }}>Loading records...</p>
-              ) : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>ID</th>
-                      <th style={styles.th}>Ingredient Name</th>
-                      <th style={styles.th}>Stock Level</th>
-                      <th style={styles.th}>Unit</th>
-                      <th style={styles.th}>Status</th>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Inventory Levels</h2>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Ingredient Name</th>
+                    <th style={styles.th}>Stock Level</th>
+                    <th style={styles.th}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventory.map((row) => (
+                    <tr key={row.id}>
+                      <td style={styles.td}>{row.ingredient_name || row.item_name}</td>
+                      <td style={styles.td}>{row.quantity || row.stock || 0}</td>
+                      <td style={styles.td}>
+                        {(Number(row.quantity) < 10) ? (
+                           <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>Low Stock</span>
+                        ) : (
+                           <span style={{ backgroundColor: '#c6f6d5', color: '#276749', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>Optimal</span>
+                        )}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {inventory.length === 0 ? (
-                      <tr><td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: '#a0aec0' }}>No inventory items found.</td></tr>
-                    ) : (
-                      inventory.map((row) => (
-                        <tr key={row.id}>
-                          <td style={styles.td}>{row.id}</td>
-                          <td style={{ ...styles.td, fontWeight: '500' }}>{row.ingredient_name || row.item_name || row.name || 'Unknown'}</td>
-                          <td style={styles.td}>{row.quantity || row.stock || 0}</td>
-                          <td style={styles.td}>{row.unit || 'units'}</td>
-                          <td style={styles.td}>
-                            {(Number(row.quantity) < 10) ? (
-                               <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>Low Stock</span>
-                            ) : (
-                               <span style={{ backgroundColor: '#c6f6d5', color: '#276749', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>Optimal</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              )}
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
-          {activeTab === 'menu' && <h2 style={{ textAlign: 'center', color: '#718096', padding: '40px' }}>Menu Management <br/><span style={{fontSize: '16px', fontWeight: 'normal'}}>Coming in Sprint 2</span></h2>}
-          {activeTab === 'sales' && <h2 style={{ textAlign: 'center', color: '#718096', padding: '40px' }}>Sales Reports <br/><span style={{fontSize: '16px', fontWeight: 'normal'}}>Coming in Sprint 2</span></h2>}
+          {/* MENU MANAGEMENT TAB */}
+          {activeTab === 'menu' && (
+            <div>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Add Menu Item</h2>
+              <form onSubmit={handleAddMenuItem}>
+                <label>Item Name:</label>
+                <input style={styles.input} type="text" required value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g., Mango Slush" />
+                
+                <label>Price ($):</label>
+                <input style={styles.input} type="number" step="0.01" required value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="5.50" />
+                
+                <label>Ingredients (Format: Name, Quantity used per order):</label>
+                <textarea style={{...styles.input, height: '100px'}} value={newItem.ingredients} onChange={e => setNewItem({...newItem, ingredients: e.target.value})} placeholder="Mango Syrup, 2.0&#10;Ice, 1.5"></textarea>
+                
+                <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Add Item to Database</button>
+              </form>
+            </div>
+          )}
+
+          {/* SALES REPORT TAB */}
+          {activeTab === 'sales' && (
+            <div>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Sales Report</h2>
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                <input style={styles.input} type="date" value={salesDates.start} onChange={e => setSalesDates({...salesDates, start: e.target.value})} />
+                <input style={styles.input} type="date" value={salesDates.end} onChange={e => setSalesDates({...salesDates, end: e.target.value})} />
+                <button onClick={generateSalesReport} style={{ padding: '10px 20px', backgroundColor: '#38a169', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Run Report</button>
+              </div>
+              
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Item Name</th>
+                    <th style={styles.th}>Quantity Sold</th>
+                    <th style={styles.th}>Total Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesData.map((row, idx) => (
+                    <tr key={idx}>
+                      <td style={styles.td}>{row.item_name}</td>
+                      <td style={styles.td}>{row.quantity_sold}</td>
+                      <td style={styles.td}>${Number(row.total_revenue).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* X & Z REPORTS TAB */}
+          {activeTab === 'reports' && (
+            <div>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>End of Day Reports</h2>
+              <div style={{ display: 'flex', gap: '20px' }}>
+                
+                <div style={{ flex: 1, backgroundColor: '#f7fafc', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <button onClick={generateXReport} style={{ width: '100%', padding: '12px', backgroundColor: '#4299e1', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', marginBottom: '15px' }}>Generate X-Report (Hourly)</button>
+                  {xReport && (
+                    <pre style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '4px', border: '1px solid #cbd5e0', fontSize: '14px' }}>
+                      {xReport.map(r => `${r.hour}:00 - ${r.order_count} orders ($${r.total_sales})\n`)}
+                    </pre>
+                  )}
+                </div>
+
+                <div style={{ flex: 1, backgroundColor: '#f7fafc', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <button onClick={generateZReport} style={{ width: '100%', padding: '12px', backgroundColor: '#e53e3e', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', marginBottom: '15px' }}>Generate Z-Report (Close Out)</button>
+                  {zReport && (
+                    <pre style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '4px', border: '1px solid #cbd5e0', fontSize: '14px' }}>
+                      Total Orders: {zReport.total_orders}{'\n'}
+                      Gross Revenue: ${Number(zReport.total_revenue).toFixed(2)}{'\n'}
+                      Tax (8.25%): ${Number(zReport.taxAmount).toFixed(2)}{'\n'}
+                      Net Sales: ${Number(zReport.total_revenue - zReport.taxAmount).toFixed(2)}
+                    </pre>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* EMPLOYEES TAB (Placeholder for future Sprint) */}
+          {activeTab === 'employees' && (
+            <h2 style={{ textAlign: 'center', color: '#718096', padding: '40px' }}>Employee Management<br/><span style={{fontSize: '16px', fontWeight: 'normal'}}>Coming soon</span></h2>
+          )}
         </div>
       </div>
 
+      {/* FLOATING BOTTOM NAV */}
       <div style={styles.floatingNav}>
         <button onClick={() => navigate('/')} style={styles.navBtn(false)}>🏠</button>
         <div style={{ width: '1px', height: '20px', backgroundColor: '#e2e8f0' }} />
         <button onClick={() => setActiveTab('inventory')} style={styles.navBtn(activeTab === 'inventory')}>📦 Inventory</button>
         <button onClick={() => setActiveTab('menu')} style={styles.navBtn(activeTab === 'menu')}>📋 Menu</button>
         <button onClick={() => setActiveTab('sales')} style={styles.navBtn(activeTab === 'sales')}>📈 Sales</button>
+        <button onClick={() => setActiveTab('reports')} style={styles.navBtn(activeTab === 'reports')}>📊 X/Z Reports</button>
+        <button onClick={() => setActiveTab('employees')} style={styles.navBtn(activeTab === 'employees')}>👥 Employees</button>
         <div style={{ width: '1px', height: '20px', backgroundColor: '#e2e8f0' }} />
         <button onClick={() => setIsAuthenticated(false)} style={{ ...styles.navBtn(false), color: '#e53e3e' }}>Sign Out</button>
       </div>
-
     </div>
   );
 }

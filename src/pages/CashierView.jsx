@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const TOPPINGS = [
+  { id: 't1', name: 'Tapioca Boba', price: 0.50 },
+  { id: 't2', name: 'Lychee Jelly', price: 0.50 },
+  { id: 't3', name: 'Crystal Boba', price: 0.75 },
+  { id: 't4', name: 'Cheese Foam', price: 1.00 },
+];
+const ICE_LEVELS = ['0%', '50%', '100%', '120%'];
+const SUGAR_LEVELS = ['0%', '50%', '100%', '120%'];
+
 export default function CashierView() {
   const navigate = useNavigate();
   
@@ -8,52 +17,73 @@ export default function CashierView() {
   const [loading, setLoading] = useState(true);
   const [currentTicket, setCurrentTicket] = useState([]);
 
+  // Customization State
+  const [customizingItem, setCustomizingItem] = useState(null);
+  const [currentIce, setCurrentIce] = useState('100%');
+  const [currentSugar, setCurrentSugar] = useState('100%');
+  const [selectedToppings, setSelectedToppings] = useState([]);
+
   useEffect(() => {
     const fetchMenu = async () => {
       try {
         const response = await fetch('/api/menu');
-        if (!response.ok) throw new Error('Network response was not ok');
-        
         const data = await response.json();
         setMenuItems(data);
-      } catch (error) {
-        console.error('Error fetching menu:', error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error('Error fetching menu:', error); } 
+      finally { setLoading(false); }
     };
-
     fetchMenu();
   }, []);
 
-  const addToTicket = (item) => {
-    setCurrentTicket([...currentTicket, item]);
+  // --- CUSTOMIZATION LOGIC ---
+  const handleItemTap = (item) => {
+    setCustomizingItem(item);
+    setCurrentIce('100%');
+    setCurrentSugar('100%');
+    setSelectedToppings([]);
   };
 
-  const removeFromTicket = (indexToRemove) => {
-    setCurrentTicket(currentTicket.filter((_, index) => index !== indexToRemove));
-  };
-
-  const clearTicket = () => {
-    setCurrentTicket([]);
-  };
-
-  const calculateTotal = () => {
-    return currentTicket.reduce((total, item) => total + Number(item.price), 0).toFixed(2);
-  };
-
-  const handleCheckout = async () => {
-    if (currentTicket.length === 0) {
-      alert("Cannot checkout an empty ticket!");
-      return;
+  const toggleTopping = (topping) => {
+    if (selectedToppings.some(t => t.id === topping.id)) {
+      setSelectedToppings(selectedToppings.filter(t => t.id !== topping.id));
+    } else {
+      setSelectedToppings([...selectedToppings, topping]);
     }
+  };
+
+  const confirmCustomization = () => {
+    const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
+    const finalPrice = Number(customizingItem.price) + toppingTotal;
+
+    const ticketItem = {
+      ...customizingItem,
+      ticketId: Date.now() + Math.random(),
+      ice: currentIce,
+      sugar: currentSugar,
+      toppings: selectedToppings,
+      finalPrice: finalPrice
+    };
+
+    setCurrentTicket([...currentTicket, ticketItem]);
+    setCustomizingItem(null);
+  };
+
+  const removeFromTicket = (ticketIdToRemove) => {
+    setCurrentTicket(currentTicket.filter(item => item.ticketId !== ticketIdToRemove));
+  };
+
+  const clearTicket = () => setCurrentTicket([]);
+
+  const calculateTotal = () => currentTicket.reduce((total, item) => total + item.finalPrice, 0).toFixed(2);
+
+  // --- CHECKOUT ---
+  const handleCheckout = async () => {
+    if (currentTicket.length === 0) return alert("Cannot checkout an empty ticket!");
 
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           total_price: calculateTotal(),
           items: currentTicket 
@@ -61,10 +91,8 @@ export default function CashierView() {
       });
 
       if (!response.ok) throw new Error('Checkout failed');
-
       const result = await response.json();
       alert(`Success! Order #${result.orderId} processed.`);
-      
       clearTicket(); 
 
     } catch (error) {
@@ -73,13 +101,59 @@ export default function CashierView() {
     }
   };
 
+  // --- STYLES ---
+  const optionBtnStyle = (isSelected) => ({
+    padding: '12px', borderRadius: '6px', border: isSelected ? '2px solid #2b6cb0' : '1px solid #ccc',
+    backgroundColor: isSelected ? '#ebf8ff' : '#fff', cursor: 'pointer', fontWeight: isSelected ? 'bold' : 'normal',
+    fontSize: '1rem', flex: 1
+  });
+
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7f6' }}>
       
-      <button 
-        onClick={() => navigate('/')} 
-        style={{ width: 'fit-content', marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '5px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}
-      >
+      {/* CUSTOMIZATION OVERLAY */}
+      {customizingItem && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '15px', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Add {customizingItem.item_name}</h2>
+              <button onClick={() => setCustomizingItem(null)} style={{ background: 'none', border: 'none', fontSize: '2em', cursor: 'pointer', color: '#666' }}>×</button>
+            </div>
+
+            <h3 style={{ marginTop: 0 }}>Ice Level</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              {ICE_LEVELS.map(level => (
+                <button key={level} onClick={() => setCurrentIce(level)} style={optionBtnStyle(currentIce === level)}>{level}</button>
+              ))}
+            </div>
+
+            <h3>Sugar Level</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              {SUGAR_LEVELS.map(level => (
+                <button key={level} onClick={() => setCurrentSugar(level)} style={optionBtnStyle(currentSugar === level)}>{level}</button>
+              ))}
+            </div>
+
+            <h3>Premium Toppings</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '30px' }}>
+              {TOPPINGS.map(topping => {
+                const isSelected = selectedToppings.some(t => t.id === topping.id);
+                return (
+                  <button key={topping.id} onClick={() => toggleTopping(topping)} style={optionBtnStyle(isSelected)}>
+                    {topping.name} <span style={{ color: '#666', fontSize: '0.85em' }}>(+${topping.price.toFixed(2)})</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <button onClick={confirmCustomization} style={{ width: '100%', padding: '15px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1.2em', fontWeight: 'bold', cursor: 'pointer' }}>
+              Add to Ticket - ${(Number(customizingItem.price) + selectedToppings.reduce((s, t) => s + t.price, 0)).toFixed(2)}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button onClick={() => navigate('/')} style={{ width: 'fit-content', marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '5px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
         ← Back to Portal
       </button>
 
@@ -94,10 +168,8 @@ export default function CashierView() {
               {menuItems.map((item) => (
                 <button 
                   key={item.id} 
-                  onClick={() => addToTicket(item)}
-                  style={{ padding: '20px 10px', fontSize: '1rem', backgroundColor: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: '8px', cursor: 'pointer', transition: 'background-color 0.2s' }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#c7d2fe'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = '#e0e7ff'}
+                  onClick={() => handleItemTap(item)}
+                  style={{ padding: '20px 10px', fontSize: '1rem', backgroundColor: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.1s' }}
                 >
                   {item.item_name} <br/>
                   <span style={{ fontSize: '0.9em', color: '#555', marginTop: '5px', display: 'inline-block' }}>
@@ -119,25 +191,20 @@ export default function CashierView() {
               <p style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>Ticket is empty</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {currentTicket.map((item, index) => (
-                  <li key={index} style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1fr 60px 30px', 
-                    alignItems: 'center', 
-                    marginBottom: '12px', 
-                    fontSize: '1.1rem', 
-                    borderBottom: '1px dashed #eee', 
-                    paddingBottom: '8px',
-                    gap: '6px'
-                  }}>
-                    <span style={{ textAlign: 'left' }}>{item.item_name}</span>
-                    <span style={{ textAlign: 'right' }}>${Number(item.price).toFixed(2)}</span>
-                    <button 
-                      onClick={() => removeFromTicket(index)} 
-                      style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '2px', padding: '2px 4px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', justifySelf: 'end' }}
-                    >
-                      ×
-                    </button>
+                {currentTicket.map((item) => (
+                  <li key={item.ticketId} style={{ marginBottom: '12px', borderBottom: '1px dashed #eee', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
+                      <strong style={{ fontSize: '1.1rem' }}>{item.item_name}</strong>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <strong style={{ fontSize: '1.1rem' }}>${item.finalPrice.toFixed(2)}</strong>
+                        <button onClick={() => removeFromTicket(item.ticketId)} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
+                      </div>
+                    </div>
+                    {/* Visual Receipt Metadata */}
+                    <div style={{ fontSize: '0.85rem', color: '#666', paddingLeft: '8px', borderLeft: '2px solid #cbd5e0' }}>
+                      Ice: {item.ice} | Sugar: {item.sugar}
+                      {item.toppings.map(t => <div key={t.id}>+ {t.name}</div>)}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -150,18 +217,8 @@ export default function CashierView() {
               <span>${calculateTotal()}</span>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                onClick={clearTicket} 
-                style={{ flex: '1', padding: '15px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}
-              >
-                Void
-              </button>
-              <button 
-                onClick={handleCheckout} 
-                style={{ flex: '2', padding: '15px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}
-              >
-                Pay & Submit
-              </button>
+              <button onClick={clearTicket} style={{ flex: '1', padding: '15px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>Void</button>
+              <button onClick={handleCheckout} style={{ flex: '2', padding: '15px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem' }}>Pay & Submit</button>
             </div>
           </div>
 

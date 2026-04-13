@@ -185,9 +185,7 @@ app.post('/api/menu', async (req, res) => {
 });
 
 // --- CASHIER CHECKOUT ROUTE ---
-
 app.post('/api/checkout', async (req, res) => {
-  // req.body.total_price is what the React frontend sends, but we map it to total_amount in SQL
   const { total_price, items } = req.body;
 
   if (!items || items.length === 0) {
@@ -199,22 +197,50 @@ app.post('/api/checkout', async (req, res) => {
   try {
     await client.query('BEGIN'); 
 
-    // Uses total_amount to match your PostgreSQL schema
+    // 1. Create the Order with an automatic timestamp
     const orderInsertQuery = `
-      INSERT INTO orders (total_amount) 
-      VALUES ($1) 
-      RETURNING id; -- Ensure 'id' matches your orders table primary key
+      INSERT INTO orders (total_price, order_time) 
+      VALUES ($1, NOW()) 
+      RETURNING order_id;
     `;
     const orderResult = await client.query(orderInsertQuery, [total_price]);
-    const orderId = orderResult.rows[0].id;
+    
+    // FIXED: Grab order_id instead of id
+    const orderId = orderResult.rows[0].order_id;
 
-    const orderItemsInsertQuery = `
-      INSERT INTO order_items (order_id, menu_id) 
-      VALUES ($1, $2);
-    `;
+    const orderItemsInsertQuery = `INSERT INTO order_items (order_id, menu_id) VALUES ($1, $2);`;
     
     for (let item of items) {
+      // 2. Link the base item to the order
       await client.query(orderItemsInsertQuery, [orderId, item.id]);
+
+      // 3. Deduct Base Ingredients (Standard Recipe)
+      await client.query(`
+        UPDATE inventory i
+        SET quantity = i.quantity - mi.quantity_used
+        FROM menu_ingredients mi
+        WHERE i.id = mi.inventory_id AND mi.menu_id = $1
+      `, [item.id]);
+
+      // 4. Deduct Customizations (Ice & Sugar) - USING INTEGERS TO PREVENT CRASHES
+      // 120% = 3 units, 100% = 2 units, 50% = 1 unit, 0% = 0 units
+      const iceUnits = item.ice === '120%' ? 3 : item.ice === '100%' ? 2 : item.ice === '50%' ? 1 : 0;
+      if (iceUnits > 0) {
+        await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Ice%'`, [iceUnits]);
+      }
+
+      const sugarUnits = item.sugar === '120%' ? 3 : item.sugar === '100%' ? 2 : item.sugar === '50%' ? 1 : 0;
+      if (sugarUnits > 0) {
+        await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Sugar%'`, [sugarUnits]);
+      }
+
+      // 5. Deduct Premium Toppings
+      if (item.toppings && item.toppings.length > 0) {
+        for (let topping of item.toppings) {
+          // Depletes 1 unit of the selected topping
+          await client.query(`UPDATE inventory SET quantity = quantity - 1 WHERE item_name ILIKE $1`, [`%${topping.name}%`]);
+        }
+      }
     }
 
     await client.query('COMMIT'); 
@@ -229,6 +255,8 @@ app.post('/api/checkout', async (req, res) => {
   }
 });
 
+
+// ==========================================
 // Catch-all route to hand frontend routing over to React Router
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));

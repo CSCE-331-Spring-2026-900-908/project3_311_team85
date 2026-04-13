@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import LanguageToggle from '../components/LanguageToggle';
 import TextSizeToggle from '../components/TextSizeToggle';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
@@ -48,7 +47,6 @@ export default function CustomerKiosk() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto', fontSize: baseFontSize }}>
-      <LanguageToggle />
       <TextSizeToggle />
       <button 
         onClick={() => navigate('/')} 

@@ -18,7 +18,7 @@ export default function TextSizeToggle({ style }) {
       style={{
         position: 'absolute',
         top: 16,
-        right: 120,
+        right: 16,
         padding: '10px 12px',
         borderRadius: 10,
         border: '1px solid rgba(0,0,0,0.15)',

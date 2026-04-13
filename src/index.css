@@ -1,0 +1,54 @@
+/* Google Translator Widget - Bottom Left on All Pages */
+#google_translate_element {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 9999;
+  overflow: visible !important;
+}
+
+.goog-te-gadget {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.goog-te-gadget select {
+  display: block !important;
+  width: 180px !important;
+  padding: 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid #ccc !important;
+  background: white !important;
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+}
+
+/* Hide all unnecessary elements from translator */
+.goog-logo-link,
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+.skiptranslate iframe,
+.goog-te-gadget-error,
+div.goog-te-notranslate,
+.goog-te-credit,
+.translated-lbl,
+.goog-te-fader {
+  display: none !important;
+}
+
+.goog-te-gadget span:not(.goog-te-combo) {
+  display: none !important;
+}
+
+/* Hide the container that holds the "Powered by" text */
+.goog-te-gadget {
+  overflow: hidden !important;
+}
+
+.goog-te-gadget > div:last-child {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import LanguageToggle from '../components/LanguageToggle';
 import TextSizeToggle from '../components/TextSizeToggle';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
@@ -27,7 +26,6 @@ export default function Portal() {
 
   return (
     <div style={styles.container}>
-      <LanguageToggle />
       <TextSizeToggle />
       <h1>{t('portal.title')}</h1>
       <p>{t('portal.selectInterface')}</p>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentWeather, getWeatherEmoji } from '../services/weatherService';
-import LanguageToggle from '../components/LanguageToggle';
 import TextSizeToggle from '../components/TextSizeToggle';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
@@ -65,7 +64,6 @@ export default function MenuBoard() {
 
   return (
     <div style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontSize: baseFontSize }}>
-      <LanguageToggle />
       <TextSizeToggle />
       
       <button 

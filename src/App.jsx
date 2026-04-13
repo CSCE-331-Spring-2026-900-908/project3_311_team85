@@ -7,6 +7,7 @@ import MenuBoard from './pages/MenuBoard';
 import { I18nProvider } from './i18n/I18nProvider';
 import { A11yProvider } from './a11y/A11yProvider';
 import { AuthProvider } from './contexts/AuthContext';
+import './index.css';
 
 function App() {
   return (

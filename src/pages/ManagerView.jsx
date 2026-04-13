@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import LoginButton from '../components/LoginButton';
 
 export default function ManagerView() {
   const navigate = useNavigate();
@@ -187,8 +185,11 @@ export default function ManagerView() {
       <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ ...styles.card, maxWidth: '400px', width: '100%', textAlign: 'center' }}>
           <h1 style={{ ...styles.mainHeading, fontSize: '32px', marginBottom: '10px' }}>Manager Portal</h1>
-          <p style={{ color: '#718096', marginBottom: '30px' }}>Please sign in to access the manager dashboard</p>
-          <LoginButton />
+          <p style={{ color: '#718096', marginBottom: '30px', lineHeight: '1.6' }}>Please authenticate to access the dashboard securely.</p>
+          <button onClick={handleGoogleLogin} style={{ width: '100%', padding: '14px', backgroundColor: '#fff', color: '#4a5568', border: '1px solid #cbd5e0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
+            <img src="https://www.google.com/favicon.ico" alt="Google Logo" style={{ width: '18px' }} />
+            Sign in with Google
+          </button>
         </div>
       </div>
     );

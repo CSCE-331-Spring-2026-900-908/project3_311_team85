@@ -48,22 +48,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Passport Google OAuth2 Strategy
-<<<<<<< HEAD
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: `${backendUrl}/auth/google/callback`
 }, (accessToken, refreshToken, profile, done) => {
-=======
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "/auth/google/callback"
-}, (accessToken, refreshToken, profile, done) => {
-  // Here you would typically find or create a user in your database
-  // For now, we'll just pass the profile information
->>>>>>> 41d3c8fc406c2577df70b7d772ace3c9bba512d3
   return done(null, {
     id: profile.id,
     email: profile.emails[0].value,
@@ -73,7 +63,6 @@ passport.use(new GoogleStrategy({
 }));
 
 // Serialize and deserialize user for session management
-<<<<<<< HEAD
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
@@ -81,71 +70,12 @@ passport.deserializeUser((user, done) => done(null, user));
 const ensureAuthenticated = (req, res, next) => {
   if (req.isAuthenticated()) return next();
   res.status(401).json({ error: 'Unauthorized: Manager access required.' });
-=======
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
-
-// Middleware to check if user is authenticated
-const ensureAuthenticated = (req, res, next) => {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: 'Unauthorized' });
->>>>>>> 41d3c8fc406c2577df70b7d772ace3c9bba512d3
 };
 
 // Middleware
 app.use(express.json()); 
 app.use(express.static(path.join(__dirname, 'dist'))); 
 
-<<<<<<< HEAD
-=======
-// ==========================================
-//           AUTHENTICATION ROUTES
-// ==========================================
-
-// Google OAuth routes
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
-  (req, res) => {
-    // Successful authentication, redirect to manager view
-    res.redirect('/manager');
-  }
-);
-
-app.get('/auth/logout', (req, res, next) => {
-  req.logout((err) => {
-    if (err) { return next(err); }
-    res.redirect('/');
-  });
-});
-
-// API route to check authentication status
-app.get('/api/auth/status', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({
-      authenticated: true,
-      user: {
-        email: req.user.email,
-        name: req.user.name,
-        avatar: req.user.avatar
-      }
-    });
-  } else {
-    res.json({ authenticated: false });
-  }
-});
-
->>>>>>> 41d3c8fc406c2577df70b7d772ace3c9bba512d3
 // ==========================================
 //           AUTHENTICATION ROUTES
 // ==========================================
@@ -159,7 +89,6 @@ app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/' }),
   (req, res) => {
     // Successful authentication, redirect to manager view on frontend
-    // In development, redirect to the frontend URL; in production, adjust accordingly
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/manager`);
   }
@@ -191,9 +120,9 @@ app.get('/api/auth/status', (req, res) => {
 // ==========================================
 //    SHARED ROUTES (MENU & INVENTORY)
 // ==========================================
-// FIXED: Removed 'ensureAuthenticated' so the Cashier POS can actually load the menu!
+// FIXED: Removed 'ensureAuthenticated' so the Cashier POS can load the menu!
 
-app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
+app.get('/api/inventory', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM inventory ORDER BY id ASC'); 
     res.json(result.rows);
@@ -203,7 +132,7 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
   }
 });
 
-app.get('/api/menu', ensureAuthenticated, async (req, res) => {
+app.get('/api/menu', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM menu ORDER BY id ASC'); 
     res.json(result.rows);

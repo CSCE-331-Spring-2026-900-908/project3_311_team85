@@ -6,7 +6,8 @@ export default function ManagerView() {
   
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Tab & Data State
   const [activeTab, setActiveTab] = useState('inventory');
@@ -23,9 +24,33 @@ export default function ManagerView() {
   // New Menu Item State
   const [newItem, setNewItem] = useState({ name: '', price: '', ingredients: '' });
 
+  // Check authentication status on mount
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  // Fetch inventory when authenticated
   useEffect(() => {
     if (isAuthenticated) fetchInventory();
   }, [isAuthenticated]);
+
+  const checkAuthStatus = async () => {
+    try {
+      const res = await fetch('/api/auth/status');
+      const data = await res.json();
+      if (data.authenticated) {
+        setIsAuthenticated(true);
+        setUser(data.user);
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (err) {
+      console.error('Error checking auth status:', err);
+      setIsAuthenticated(false);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const fetchInventory = async () => {
     try {
@@ -35,10 +60,20 @@ export default function ManagerView() {
     } catch (err) { console.error(err); }
   };
 
-  const handleGoogleLogin = (e) => {
-    e.preventDefault();
-    setUserEmail('reveille.bubbletea@gmail.com');
-    setIsAuthenticated(true);
+  const handleGoogleLogin = () => {
+    // Redirect to Google OAuth endpoint
+    window.location.href = '/auth/google';
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/auth/logout');
+      setIsAuthenticated(false);
+      setUser(null);
+      navigate('/');
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
   };
 
   // --- REPORTING FUNCTIONS ---
@@ -133,6 +168,17 @@ export default function ManagerView() {
     td: { padding: '15px', borderBottom: '1px solid #f0f0f0', color: '#2d3748', fontSize: '15px' },
     input: { padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e0', width: '100%', marginBottom: '15px', boxSizing: 'border-box' }
   };
+
+  if (authLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ ...styles.card, maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+          <h1 style={{ ...styles.mainHeading, fontSize: '32px', marginBottom: '10px' }}>Manager Portal</h1>
+          <p style={{ color: '#718096', marginBottom: '30px', lineHeight: '1.6' }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -285,7 +331,8 @@ export default function ManagerView() {
         <button onClick={() => setActiveTab('reports')} style={styles.navBtn(activeTab === 'reports')}>📊 X/Z Reports</button>
         <button onClick={() => setActiveTab('employees')} style={styles.navBtn(activeTab === 'employees')}>👥 Employees</button>
         <div style={{ width: '1px', height: '20px', backgroundColor: '#e2e8f0' }} />
-        <button onClick={() => setIsAuthenticated(false)} style={{ ...styles.navBtn(false), color: '#e53e3e' }}>Sign Out</button>
+        {user && <span style={{ fontSize: '14px', color: '#718096' }}>{user.email}</span>}
+        <button onClick={handleLogout} style={{ ...styles.navBtn(false), color: '#e53e3e' }}>Sign Out</button>
       </div>
     </div>
   );

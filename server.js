@@ -3,6 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import pkg from 'pg'; 
+import passport from 'passport';
+import GoogleStrategy from 'passport-google-oauth20';
+import session from 'express-session';
 const { Pool } = pkg;
 
 // Load environment variables from .env
@@ -32,16 +35,93 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
+
+// Passport initialization
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport Google OAuth2 Strategy
+const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: `${backendUrl}/auth/google/callback`
+}, (accessToken, refreshToken, profile, done) => {
+  return done(null, {
+    id: profile.id,
+    email: profile.emails[0].value,
+    name: profile.displayName,
+    avatar: profile.photos[0].value
+  });
+}));
+
+// Serialize and deserialize user for session management
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+// Middleware to check if user is authenticated (For Manager Routes)
+const ensureAuthenticated = (req, res, next) => {
+  if (req.isAuthenticated()) return next();
+  res.status(401).json({ error: 'Unauthorized: Manager access required.' });
+};
+
 // Middleware
 app.use(express.json()); 
 app.use(express.static(path.join(__dirname, 'dist'))); 
 
+// ==========================================
+//           AUTHENTICATION ROUTES
+// ==========================================
+
+// Google OAuth routes
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/' }),
+  (req, res) => {
+    // Successful authentication, redirect to manager view on frontend
+    // In development, redirect to the frontend URL; in production, adjust accordingly
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/manager`);
+  }
+);
+
+app.get('/auth/logout', (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    res.redirect('/');
+  });
+});
+
+// API route to check authentication status
+app.get('/api/auth/status', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({
+      authenticated: true,
+      user: {
+        email: req.user.email,
+        name: req.user.name,
+        avatar: req.user.avatar
+      }
+    });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
 
 // ==========================================
-//               API ROUTES
+//    SHARED ROUTES (MENU & INVENTORY)
 // ==========================================
-
-// --- INVENTORY & MENU ---
+// FIXED: Removed 'ensureAuthenticated' so the Cashier POS can actually load the menu!
 
 app.get('/api/inventory', async (req, res) => {
   try {
@@ -63,11 +143,12 @@ app.get('/api/menu', async (req, res) => {
   }
 });
 
-
-// --- REPORTING ROUTES ---
+// ==========================================
+//        MANAGER ROUTES (PROTECTED)
+// ==========================================
 
 // 1. Get Sales Report (Date Range)
-app.get('/api/reports/sales', async (req, res) => {
+app.get('/api/reports/sales', ensureAuthenticated, async (req, res) => {
   const { start, end } = req.query;
   try {
     const sql = `
@@ -83,13 +164,12 @@ app.get('/api/reports/sales', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('Sales Report SQL Error:', err.message);
-    console.error('Full error:', err);
     res.status(500).json({ error: 'Server error generating sales report: ' + err.message });
   }
 });
 
 // 2. Get X-Report (Current Day Hourly Breakdown)
-app.get('/api/reports/xreport', async (req, res) => {
+app.get('/api/reports/xreport', ensureAuthenticated, async (req, res) => {
   try {
     const hourlySql = `
       SELECT EXTRACT(HOUR FROM order_timestamp) as hour, 
@@ -104,18 +184,16 @@ app.get('/api/reports/xreport', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('X-Report SQL Error:', err.message);
-    console.error('Full error:', err);
     res.status(500).json({ error: 'Server error generating X-Report: ' + err.message });
   }
 });
 
 // 3. Generate & Save Z-Report (End of Day)
-app.post('/api/reports/zreport', async (req, res) => {
+app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    // Note: total_amount replaces total_price here to match your PostgreSQL schema
     const dailySql = `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue FROM orders WHERE DATE(order_timestamp) = CURRENT_DATE`;
     const rs = await client.query(dailySql);
     
@@ -123,7 +201,6 @@ app.post('/api/reports/zreport', async (req, res) => {
     const total_revenue = rs.rows[0].total_revenue;
     const taxAmount = total_revenue * 0.0825;
 
-    // Save to Z-Report Table
     const insertZReport = `INSERT INTO z_reports (report_date, total_orders, total_revenue, tax_amount) VALUES (CURRENT_DATE, $1, $2, $3)`;
     await client.query(insertZReport, [total_orders, total_revenue, taxAmount]);
 
@@ -132,18 +209,14 @@ app.post('/api/reports/zreport', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Z-Report SQL Error:', err.message);
-    console.error('Full error:', err);
     res.status(500).json({ error: 'Server error generating Z-Report: ' + err.message });
   } finally {
     client.release();
   }
 });
 
-
-// --- MANAGER ACTION ROUTES ---
-
 // 4. Add New Menu Item & Ingredients
-app.post('/api/menu', async (req, res) => {
+app.post('/api/menu', ensureAuthenticated, async (req, res) => {
   const { itemName, price, ingredientsText } = req.body;
   const client = await pool.connect();
   try {
@@ -184,7 +257,11 @@ app.post('/api/menu', async (req, res) => {
   }
 });
 
-// --- CASHIER CHECKOUT ROUTE ---
+// ==========================================
+//        CASHIER CHECKOUT ROUTE
+// ==========================================
+// FIXED: Restored inventory depletion logic for base ingredients, sugar, ice, and toppings.
+
 app.post('/api/checkout', async (req, res) => {
   const { total_price, items } = req.body;
 
@@ -197,18 +274,19 @@ app.post('/api/checkout', async (req, res) => {
   try {
     await client.query('BEGIN'); 
 
-    // 1. Create the Order with an automatic timestamp
+    // 1. Create the Order with order_timestamp to match your reporting logic
     const orderInsertQuery = `
-      INSERT INTO orders (total_price, order_time) 
+      INSERT INTO orders (total_amount, order_timestamp) 
       VALUES ($1, NOW()) 
-      RETURNING order_id;
+      RETURNING id; 
     `;
     const orderResult = await client.query(orderInsertQuery, [total_price]);
-    
-    // FIXED: Grab order_id instead of id
-    const orderId = orderResult.rows[0].order_id;
+    const orderId = orderResult.rows[0].id;
 
-    const orderItemsInsertQuery = `INSERT INTO order_items (order_id, menu_id) VALUES ($1, $2);`;
+    const orderItemsInsertQuery = `
+      INSERT INTO order_items (order_id, menu_id) 
+      VALUES ($1, $2);
+    `;
     
     for (let item of items) {
       // 2. Link the base item to the order
@@ -222,8 +300,7 @@ app.post('/api/checkout', async (req, res) => {
         WHERE i.id = mi.inventory_id AND mi.menu_id = $1
       `, [item.id]);
 
-      // 4. Deduct Customizations (Ice & Sugar) - USING INTEGERS TO PREVENT CRASHES
-      // 120% = 3 units, 100% = 2 units, 50% = 1 unit, 0% = 0 units
+      // 4. Deduct Customizations (Ice & Sugar)
       const iceUnits = item.ice === '120%' ? 3 : item.ice === '100%' ? 2 : item.ice === '50%' ? 1 : 0;
       if (iceUnits > 0) {
         await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Ice%'`, [iceUnits]);
@@ -254,7 +331,6 @@ app.post('/api/checkout', async (req, res) => {
     client.release();
   }
 });
-
 
 // ==========================================
 // Catch-all route to hand frontend routing over to React Router

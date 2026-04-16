@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import TextSizeToggle from '../components/TextSizeToggle';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
+import Chatbot from '../components/Chatbot';
 
 export default function CustomerKiosk() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { textSize } = useA11y();
-  
+
   const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
-  
+
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
@@ -20,7 +21,7 @@ export default function CustomerKiosk() {
       try {
         const response = await fetch('/api/menu');
         if (!response.ok) throw new Error('Network response was not ok');
-        
+
         const data = await response.json();
         setMenuItems(data);
       } catch (error) {
@@ -48,8 +49,9 @@ export default function CustomerKiosk() {
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto', fontSize: baseFontSize }}>
       <TextSizeToggle />
-      <button 
-        onClick={() => navigate('/')} 
+      <Chatbot />
+      <button
+        onClick={() => navigate('/')}
         style={{ marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '5px' }}
       >
         ← {t('common.backToPortal')}
@@ -63,8 +65,8 @@ export default function CustomerKiosk() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
               {menuItems.map((item) => (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   onClick={() => addToCart(item)}
                   style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', backgroundColor: '#fafafa', transition: '0.2s' }}
                 >
@@ -84,30 +86,30 @@ export default function CustomerKiosk() {
             <>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0' }}>
                 {cart.map((item, index) => (
-                  <li key={index} style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1fr 80px 30px', 
-                    alignItems: 'center', 
-                    marginBottom: '10px', 
-                    borderBottom: '1px solid #ddd', 
+                  <li key={index} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 80px 30px',
+                    alignItems: 'center',
+                    marginBottom: '10px',
+                    borderBottom: '1px solid #ddd',
                     paddingBottom: '10px',
                     gap: '10px'
                   }}>
                     <span style={{ textAlign: 'left' }}>{item.item_name}</span>
                     <span style={{ textAlign: 'right' }}>${Number(item.price).toFixed(2)}</span>
-                    <button 
-                      onClick={() => removeFromCart(index)} 
-                      style={{ 
-                        background: '#e65a5a', 
-                        color: 'white', 
-                        border: 'none', 
-                        borderRadius: '50%', 
-                        width: '24px', 
-                        height: '24px', 
-                        cursor: 'pointer', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
+                    <button
+                      onClick={() => removeFromCart(index)}
+                      style={{
+                        background: '#e65a5a',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         fontWeight: 'bold',
                         padding: 0,
                         marginLeft: 'auto'

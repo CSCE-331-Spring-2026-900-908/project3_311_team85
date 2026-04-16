@@ -6,7 +6,6 @@ import pkg from 'pg';
 import passport from 'passport';
 import GoogleStrategy from 'passport-google-oauth20';
 import session from 'express-session';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 const { Pool } = pkg;
 
 // Load environment variables from .env
@@ -140,43 +139,6 @@ app.get('/api/menu', async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
-  }
-});
-
-// ==========================================
-//        AI CHATBOT ROUTE
-// ==========================================
-
-app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
-  
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
-  }
-
-  try {
-    // 1. Fetch menu data for context
-    const menuResult = await pool.query('SELECT item_name, price FROM menu ORDER BY id ASC');
-    const menuItems = menuResult.rows.map(item => `${item.item_name} ($${Number(item.price).toFixed(2)})`).join(', ');
-
-    // 2. Initialize Gemini AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    // 3. Create context-aware prompt
-    const prompt = `You are a helpful and friendly AI assistant for a restaurant kiosk. 
-    Here is the current menu with prices: ${menuItems}. 
-    Please answer the customer's question based on this menu. Keep answers concise, friendly, and helpful. 
-    Customer: ${message}`;
-
-    // 4. Get response
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    
-    res.json({ response: text });
-  } catch (err) {
-    console.error('Gemini API Error:', err.message);
-    res.status(500).json({ error: 'Failed to generate a response. Please try again later.' });
   }
 });
 

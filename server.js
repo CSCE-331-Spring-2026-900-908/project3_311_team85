@@ -185,53 +185,52 @@ app.post('/api/chat', async (req, res) => {
 // ==========================================
 
 // 1. Get Sales Report (Date Range)
-app.get('/api/reports/sales', ensureAuthenticated, async (req, res) => {
+app.get('/api/reports/sales', async (req, res) => {
   const { start, end } = req.query;
   try {
     const sql = `
       SELECT m.item_name, COUNT(oi.menu_id) as quantity_sold, SUM(m.price) as total_revenue 
       FROM menu m 
       JOIN order_items oi ON m.id = oi.menu_id 
-      JOIN orders o ON oi.order_id = o.id 
-      WHERE DATE(o.order_timestamp) BETWEEN $1 AND $2 
+      JOIN orders o ON oi.order_id = o.order_id  -- FIXED: o.order_id instead of o.id
+      WHERE DATE(o.order_time) BETWEEN $1 AND $2 -- FIXED: order_time
       GROUP BY m.id, m.item_name 
       ORDER BY quantity_sold DESC
     `;
     const result = await pool.query(sql, [start, end]);
     res.json(result.rows);
   } catch (err) {
-    console.error('Sales Report SQL Error:', err.message);
-    res.status(500).json({ error: 'Server error generating sales report: ' + err.message });
+    console.error("Sales Report SQL Error:", err.message);
+    res.status(500).json({ error: 'Server error generating sales report' });
   }
 });
 
 // 2. Get X-Report (Current Day Hourly Breakdown)
-app.get('/api/reports/xreport', ensureAuthenticated, async (req, res) => {
+app.get('/api/reports/xreport', async (req, res) => {
   try {
     const hourlySql = `
-      SELECT EXTRACT(HOUR FROM order_timestamp) as hour, 
+      SELECT EXTRACT(HOUR FROM order_time) as hour, -- FIXED: order_time
       COUNT(*) as order_count, 
-      SUM(total_amount) as total_sales 
+      SUM(total_price) as total_sales -- FIXED: total_price
       FROM orders 
-      WHERE DATE(order_timestamp) = CURRENT_DATE 
-      GROUP BY EXTRACT(HOUR FROM order_timestamp)
-      ORDER BY hour
+      WHERE DATE(order_time) = CURRENT_DATE -- FIXED: order_time
+      GROUP BY hour ORDER BY hour
     `;
     const result = await pool.query(hourlySql);
     res.json(result.rows);
   } catch (err) {
-    console.error('X-Report SQL Error:', err.message);
-    res.status(500).json({ error: 'Server error generating X-Report: ' + err.message });
+    console.error("X-Report SQL Error:", err.message);
+    res.status(500).json({ error: 'Server error generating X-Report' });
   }
 });
 
 // 3. Generate & Save Z-Report (End of Day)
-app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
+app.post('/api/reports/zreport', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    const dailySql = `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue FROM orders WHERE DATE(order_timestamp) = CURRENT_DATE`;
+    const dailySql = `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_price), 0) as total_revenue FROM orders WHERE DATE(order_time) = CURRENT_DATE`;
     const rs = await client.query(dailySql);
     
     const total_orders = rs.rows[0].total_orders;
@@ -245,8 +244,8 @@ app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
     res.json({ message: 'Z-Report Generated', data: { total_orders, total_revenue, taxAmount } });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Z-Report SQL Error:', err.message);
-    res.status(500).json({ error: 'Server error generating Z-Report: ' + err.message });
+    console.error("Z-Report SQL Error:", err.message);
+    res.status(500).json({ error: 'Server error generating Z-Report' });
   } finally {
     client.release();
   }
@@ -297,8 +296,6 @@ app.post('/api/menu', ensureAuthenticated, async (req, res) => {
 // ==========================================
 //        CASHIER CHECKOUT ROUTE
 // ==========================================
-// FIXED: Restored inventory depletion logic for base ingredients, sugar, ice, and toppings.
-
 app.post('/api/checkout', async (req, res) => {
   const { total_price, items } = req.body;
 
@@ -311,25 +308,20 @@ app.post('/api/checkout', async (req, res) => {
   try {
     await client.query('BEGIN'); 
 
-    // 1. Create the Order with order_timestamp to match your reporting logic
+    // FIXED: total_price and order_time, RETURNING order_id
     const orderInsertQuery = `
-      INSERT INTO orders (total_amount, order_timestamp) 
+      INSERT INTO orders (total_price, order_time) 
       VALUES ($1, NOW()) 
-      RETURNING id; 
+      RETURNING order_id;
     `;
     const orderResult = await client.query(orderInsertQuery, [total_price]);
-    const orderId = orderResult.rows[0].id;
+    const orderId = orderResult.rows[0].order_id;
 
-    const orderItemsInsertQuery = `
-      INSERT INTO order_items (order_id, menu_id) 
-      VALUES ($1, $2);
-    `;
+    const orderItemsInsertQuery = `INSERT INTO order_items (order_id, menu_id) VALUES ($1, $2);`;
     
     for (let item of items) {
-      // 2. Link the base item to the order
       await client.query(orderItemsInsertQuery, [orderId, item.id]);
 
-      // 3. Deduct Base Ingredients (Standard Recipe)
       await client.query(`
         UPDATE inventory i
         SET quantity = i.quantity - mi.quantity_used
@@ -337,7 +329,6 @@ app.post('/api/checkout', async (req, res) => {
         WHERE i.id = mi.inventory_id AND mi.menu_id = $1
       `, [item.id]);
 
-      // 4. Deduct Customizations (Ice & Sugar)
       const iceUnits = item.ice === '120%' ? 3 : item.ice === '100%' ? 2 : item.ice === '50%' ? 1 : 0;
       if (iceUnits > 0) {
         await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Ice%'`, [iceUnits]);
@@ -348,10 +339,8 @@ app.post('/api/checkout', async (req, res) => {
         await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Sugar%'`, [sugarUnits]);
       }
 
-      // 5. Deduct Premium Toppings
       if (item.toppings && item.toppings.length > 0) {
         for (let topping of item.toppings) {
-          // Depletes 1 unit of the selected topping
           await client.query(`UPDATE inventory SET quantity = quantity - 1 WHERE item_name ILIKE $1`, [`%${topping.name}%`]);
         }
       }

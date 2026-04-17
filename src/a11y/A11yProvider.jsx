@@ -7,11 +7,12 @@ const A11yContext = createContext(null);
 function getStoredTextSize() {
   try {
     const v = window.localStorage.getItem(STORAGE_KEY);
-    if (v === 'normal' || v === 'large') return v;
+    const parsed = parseFloat(v);
+    if (!isNaN(parsed) && parsed >= 1.0 && parsed <= 2.0) return parsed;
   } catch {
     // ignore
   }
-  return 'normal';
+  return 1.0;
 }
 
 export function A11yProvider({ children }) {
@@ -19,15 +20,20 @@ export function A11yProvider({ children }) {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, textSize);
+      window.localStorage.setItem(STORAGE_KEY, textSize.toString());
     } catch {
       // ignore
     }
   }, [textSize]);
 
   const value = useMemo(() => {
-    const toggleTextSize = () => setTextSize((prev) => (prev === 'normal' ? 'large' : 'normal'));
-    return { textSize, setTextSize, toggleTextSize };
+    const setTextSizeValue = (value) => {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue) && numValue >= 1.0 && numValue <= 2.0) {
+        setTextSize(numValue);
+      }
+    };
+    return { textSize, setTextSize: setTextSizeValue };
   }, [textSize]);
 
   return <A11yContext.Provider value={value}>{children}</A11yContext.Provider>;

@@ -5,14 +5,21 @@ import TextSizeToggle from '../components/TextSizeToggle';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
 
+/**
+ * MenuBoard Component
+ * 
+ * A digital menu display board for customers showing available menu items.
+ * Features weather display, accessibility text sizing, and real-time menu data.
+ * Designed for large screen displays in restaurant environments.
+ */
 export default function MenuBoard() {
   const navigate = useNavigate();
-  const { t } = useI18n();
-  const { textSize } = useA11y();
+  const { t } = useI18n(); // Translation function
+  const { textSize } = useA11y(); // Text size from accessibility context
   
-  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
+  const baseFontSize = `${textSize}em`; // Dynamic font size based on user preference
   
-  // Weather State
+  // Weather State - Displays current weather conditions
   const [weather, setWeather] = useState({
     temperature: 75,
     description: 'Clear',
@@ -22,11 +29,11 @@ export default function MenuBoard() {
     isRealData: false
   });
 
-  // Database Menu State
-  const [menuItems, setMenuItems] = useState([]);
-  const [menuLoading, setMenuLoading] = useState(true);
+  // Database Menu State - Menu items from backend
+  const [menuItems, setMenuItems] = useState([]); // Menu items from API
+  const [menuLoading, setMenuLoading] = useState(true); // Loading state for menu fetch
 
-  // 1. Fetch Weather Data
+  // 1. Fetch Weather Data on mount and set up periodic updates
   useEffect(() => {
     const fetchWeather = async () => {
       try {
@@ -38,13 +45,16 @@ export default function MenuBoard() {
       }
     };
 
+    // Initial fetch of weather data
     fetchWeather();
     // Refresh weather every 10 minutes
     const interval = setInterval(fetchWeather, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
+  // 2. Fetch Menu Data from backend
   useEffect(() => {
+    // Function to fetch menu data from backend API
     const fetchMenu = async () => {
       try {
         const response = await fetch('/api/menu');
@@ -59,6 +69,7 @@ export default function MenuBoard() {
       }
     };
 
+    // Initial fetch of menu data
     fetchMenu();
   }, []);
 

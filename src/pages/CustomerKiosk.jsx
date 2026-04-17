@@ -25,28 +25,27 @@ const modalLayout = [
   [{ type: 'CONFIRM' }]
 ];
 
+/**
+ * CustomerKiosk Component
+ * 
+ * A customer-facing ordering interface for self-service ordering.
+ * Features menu browsing, cart management, and AI chatbot assistance.
+ * Integrates with accessibility features for text size scaling and
+ * internationalization for multi-language support.
+ */
 export default function CustomerKiosk() {
   const navigate = useNavigate();
-  const { t } = useI18n();
-  const { textSize } = useA11y();
-  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
+  const { t } = useI18n(); // Translation function
+  const { textSize } = useA11y(); // Text size from accessibility context
   
-  const [menuItems, setMenuItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState([]);
+  const baseFontSize = `${textSize}em`; // Dynamic font size based on user preference
+  
+  // Component state
+  const [menuItems, setMenuItems] = useState([]); // Available menu items from API
+  const [loading, setLoading] = useState(true); // Loading state for menu fetch
+  const [cart, setCart] = useState([]); // Customer's shopping cart
 
-  // --- Accessibility Navigation State ---
-  const gridRef = useRef(null);
-  const [focusArea, setFocusArea] = useState('MENU'); // 'MENU' | 'CHECKOUT'
-  const [focusedIndex, setFocusedIndex] = useState(0); // For the main grid
-  const [modalPos, setModalPos] = useState({ r: modalLayout.length - 1, c: 0 }); // Row & Col for Modal
-
-  // --- Order State ---
-  const [customizingItem, setCustomizingItem] = useState(null);
-  const [currentIce, setCurrentIce] = useState('100%');
-  const [currentSugar, setCurrentSugar] = useState('100%');
-  const [selectedToppings, setSelectedToppings] = useState([]);
-
+  // Fetch menu items from API on component mount
   useEffect(() => {
     const fetchMenu = async () => {
       try {
@@ -59,97 +58,19 @@ export default function CustomerKiosk() {
     fetchMenu();
   }, []);
 
-  // --- TRUE 2D KEYBOARD NAVIGATION ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
-
-      // 1. Navigation inside the Customization Modal
-      if (customizingItem) {
-        if (e.key === 'ArrowUp') {
-          setModalPos(prev => ({ r: Math.max(0, prev.r - 1), c: Math.min(prev.c, modalLayout[Math.max(0, prev.r - 1)].length - 1) }));
-        } else if (e.key === 'ArrowDown') {
-          setModalPos(prev => ({ r: Math.min(modalLayout.length - 1, prev.r + 1), c: Math.min(prev.c, modalLayout[Math.min(modalLayout.length - 1, prev.r + 1)].length - 1) }));
-        } else if (e.key === 'ArrowLeft') {
-          setModalPos(prev => ({ r: prev.r, c: Math.max(0, prev.c - 1) }));
-        } else if (e.key === 'ArrowRight') {
-          setModalPos(prev => ({ r: prev.r, c: Math.min(modalLayout[prev.r].length - 1, prev.c + 1) }));
-        } else if (e.key === 'Enter') {
-          const opt = modalLayout[modalPos.r][modalPos.c];
-          if (opt.type === 'ICE') setCurrentIce(opt.value);
-          if (opt.type === 'SUGAR') setCurrentSugar(opt.value);
-          if (opt.type === 'TOPPING') toggleTopping(opt.value);
-          if (opt.type === 'CONFIRM') confirmCustomization();
-        } else if (e.key === 'Escape') {
-          setCustomizingItem(null);
-        }
-        return; 
-      }
-
-      // 2. Navigation outside the Modal (Grid & Sidebar)
-      if (focusArea === 'CHECKOUT') {
-        if (e.key === 'ArrowLeft') setFocusArea('MENU');
-        else if (e.key === 'Enter') handleCheckout();
-      } else if (focusArea === 'MENU' && menuItems.length > 0 && gridRef.current) {
-        const children = gridRef.current.children;
-        if (children.length === 0) return;
-
-        let cols = 1;
-        const firstTop = children[0].offsetTop;
-        for (let i = 1; i < children.length; i++) {
-          if (children[i].offsetTop > firstTop) break;
-          cols++;
-        }
-
-        if (e.key === 'ArrowRight') {
-          setFocusedIndex(prev => {
-            // If on the right edge, jump to Checkout!
-            if ((prev + 1) % cols === 0 || prev === menuItems.length - 1) {
-              setFocusArea('CHECKOUT');
-              return prev;
-            }
-            return prev + 1;
-          });
-        } else if (e.key === 'ArrowLeft') {
-          setFocusedIndex(prev => Math.max(prev - 1, 0));
-        } else if (e.key === 'ArrowDown') {
-          setFocusedIndex(prev => Math.min(prev + cols, menuItems.length - 1));
-        } else if (e.key === 'ArrowUp') {
-          setFocusedIndex(prev => Math.max(prev - cols, 0));
-        } else if (e.key === 'Enter') {
-          handleItemTap(menuItems[focusedIndex]);
-        }
-        
-        // Auto-scroll logic
-        if (children[focusedIndex] && focusArea === 'MENU') {
-          children[focusedIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuItems, focusedIndex, customizingItem, currentIce, currentSugar, selectedToppings, modalPos, focusArea]);
-
-
-  const handleItemTap = (item) => {
-    setCustomizingItem(item); setCurrentIce('100%'); setCurrentSugar('100%'); setSelectedToppings([]);
-    setModalPos({ r: modalLayout.length - 1, c: 0 }); // Reset to Submit button
+  // Add item to customer's cart
+  const addToCart = (item) => {
+    setCart([...cart, item]);
   };
 
-  const toggleTopping = (topping) => {
-    if (selectedToppings.some(t => t.id === topping.id)) setSelectedToppings(selectedToppings.filter(t => t.id !== topping.id));
-    else setSelectedToppings([...selectedToppings, topping]);
+  // Remove item from cart by index
+  const removeFromCart = (indexToRemove) => {
+    setCart(cart.filter((_, index) => index !== indexToRemove));
   };
 
-  const confirmCustomization = () => {
-    const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
-    const cartItem = {
-      ...customizingItem, cartId: Date.now() + Math.random(), 
-      ice: currentIce, sugar: currentSugar, toppings: selectedToppings,
-      finalPrice: Number(customizingItem.price) + toppingTotal
-    };
-    setCart([...cart, cartItem]); setCustomizingItem(null); setFocusArea('CHECKOUT'); // Auto jump to checkout area
+  // Calculate total price of all items in cart
+  const calculateTotal = () => {
+    return cart.reduce((total, item) => total + Number(item.price), 0).toFixed(2);
   };
 
   const removeFromCart = (cartIdToRemove) => setCart(cart.filter(item => item.cartId !== cartIdToRemove));
@@ -181,67 +102,18 @@ export default function CustomerKiosk() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto', fontSize: baseFontSize }}>
-      
-      {/* CUSTOMIZATION OVERLAY */}
-      {customizingItem && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '16px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '20px', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '2em' }}>Customize: {customizingItem.item_name}</h2>
-              <button onClick={() => setCustomizingItem(null)} style={{ background: 'none', border: 'none', fontSize: '2em', cursor: 'pointer' }}>×</button>
-            </div>
-            <p style={{ color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>Keyboard Users: Use Arrow Keys to navigate, and Enter to toggle/confirm.</p>
-
-            <h3>Ice Level</h3>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              {ICE_LEVELS.map((level, c) => (
-                <button key={level} onClick={() => setCurrentIce(level)} style={optionBtnStyle(currentIce === level, modalPos.r === 0 && modalPos.c === c)}>{level}</button>
-              ))}
-            </div>
-            
-            <h3>Sugar Level</h3>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              {SUGAR_LEVELS.map((level, c) => (
-                <button key={level} onClick={() => setCurrentSugar(level)} style={optionBtnStyle(currentSugar === level, modalPos.r === 1 && modalPos.c === c)}>{level}</button>
-              ))}
-            </div>
-            
-            <h3>Add Toppings</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '30px' }}>
-              {TOPPINGS.map((topping, i) => {
-                const r = 2 + Math.floor(i / 2); // Row 2 or 3
-                const c = i % 2; // Col 0 or 1
-                return (
-                  <button key={topping.id} onClick={() => toggleTopping(topping)} style={optionBtnStyle(selectedToppings.some(t => t.id === topping.id), modalPos.r === r && modalPos.c === c)}>
-                    {topping.name} <span style={{ color: '#666', fontSize: '0.9em' }}>(+${topping.price.toFixed(2)})</span>
-                  </button>
-                )
-              })}
-            </div>
-            
-            <button 
-              onClick={confirmCustomization} 
-              style={{ 
-                width: '100%', padding: '20px', backgroundColor: '#5c9c5f', color: '#fff', 
-                border: (modalPos.r === modalLayout.length - 1) ? '4px solid #aa3bff' : 'none', 
-                borderRadius: '8px', fontSize: '1.3em', fontWeight: 'bold', cursor: 'pointer',
-                transform: (modalPos.r === modalLayout.length - 1) ? 'scale(1.02)' : 'scale(1)',
-                boxShadow: (modalPos.r === modalLayout.length - 1) ? '0 8px 20px rgba(170, 59, 255, 0.4)' : 'none'
-              }}
-            >
-              Add to Order - ${(Number(customizingItem.price) + selectedToppings.reduce((s, t) => s + t.price, 0)).toFixed(2)}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <button onClick={() => navigate('/')} style={{ padding: '10px 15px', cursor: 'pointer', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '5px' }}>← {t('common.backToPortal')}</button>
-        <div><TextSizeToggle /></div>
-      </div>
+      {/* Accessibility and AI components */}
+      <TextSizeToggle />
+      <Chatbot />
+      <button 
+        onClick={() => navigate('/')} 
+        style={{ marginBottom: '20px', padding: '10px 15px', cursor: 'pointer', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '5px' }}
+      >
+        ← {t('common.backToPortal')}
+      </button>
 
       <div style={{ display: 'flex', gap: '40px' }}>
+        {/* Menu Display Section */}
         <div style={{ flex: '2' }}>
           <h1 id="menu-title">{t('customer.title')}</h1>
           <p style={{ color: '#666', marginBottom: '20px' }}>Use Arrow Keys to navigate. Arrow Right from the edge to Pay!</p>
@@ -271,9 +143,12 @@ export default function CustomerKiosk() {
           )}
         </div>
 
-        <div style={{ flex: '1', backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>{t('customer.yourOrder')}</h2>
-          {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
+        {/* Shopping Cart Section */}
+        <div style={{ flex: '1', backgroundColor: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #eee', height: 'fit-content' }}>
+          <h2>{t('customer.yourOrder')}</h2>
+          {cart.length === 0 ? (
+            <p style={{ color: '#888' }}>{t('customer.emptyCart')}</p>
+          ) : (
             <>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>
                 {cart.map((item) => (

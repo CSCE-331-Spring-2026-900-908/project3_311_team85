@@ -11,7 +11,7 @@ const mockMenu = [
 export default function CashierView() {
   const [orderTicket, setOrderTicket] = useState([]);
 
-  const addItem = (item) => setOrderTicket(prev => [...prev, item]);
+  const addItem = (item) => setOrderTicket([...orderTicket, item]);
   const clearTicket = () => setOrderTicket([]);
   const total = orderTicket.reduce((sum, item) => sum + item.price, 0);
 
@@ -38,21 +38,11 @@ export default function CashierView() {
         <h2>Current Ticket</h2>
         <div style={{ flexGrow: 1, border: '1px solid #eee', padding: '10px', marginBottom: '10px', overflowY: 'auto' }}>
           {orderTicket.map((item, idx) => (
-            <div 
-              key={idx}
-              onClick={() => removeItem(idx)}
-              style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                padding: '5px 0',
-                cursor: 'pointer'
-              }}
-            >
+            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
               <span>{item.name}</span>
               <span>${item.price.toFixed(2)}</span>
             </div>
           ))}
-
         </div>
         <h3>Total: ${total.toFixed(2)}</h3>
         <div style={{ display: 'flex', gap: '10px' }}>

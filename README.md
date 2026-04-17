@@ -17,7 +17,26 @@ If you are developing a production application, we recommend using TypeScript wi
 
 ## Project Overview
 
+<<<<<<< Updated upstream
 Octagon is a state of the art renown software as a service point of sale ssystem
+=======
+```
+src/
+|-- App.jsx              # Main application component with routing
+|-- main.jsx             # Application entry point
+|-- index.css            # Important cascade styles
+|-- pages/
+|   |-- Portal.jsx       # Navigation hub for all interfaces
+|   |-- ManagerView.jsx  # Inventory management dashboard
+|   |-- CashierView.jsx  # POS interface for order processing
+|   |-- CustomerKiosk.jsx # Self-service ordering interface
+|   |-- MenuBoard.jsx    # Digital menu display with weather
+|-- services/
+|   |-- weatherService.js # Weather API integration
+|   |-- authService.js    #Authentication service integration
+|-- assets/              # Static assets and images
+```
+>>>>>>> Stashed changes
 
 This system blends a an intutive views like the cashier, manager, and customer view into a seamless app that contains useful web API's. 
 

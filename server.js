@@ -34,7 +34,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5173;
+const PORT = process.env.PORT || 3000;
 
 // Session configuration
 app.use(session({
@@ -49,7 +49,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Passport Google OAuth2 Strategy
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:5173';
+const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,

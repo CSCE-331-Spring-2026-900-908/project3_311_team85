@@ -30,7 +30,7 @@ export default function CustomerKiosk() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { textSize } = useA11y();
-  const baseFontSize = `${textSize}em`; // Use continuous text size value
+  const baseFontSize = textSize === 'large' ? '1.2em' : '1em';
   
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);

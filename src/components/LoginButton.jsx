@@ -1,15 +1,6 @@
 import React from 'react';
 
-/**
- * LoginButton Component
- * 
- * A Google OAuth login button that initiates the authentication flow.
- * When clicked, it redirects the user to the Google OAuth endpoint for authentication.
- * Features the official Google "G" logo and uses Tailwind CSS for styling.
- */
 const LoginButton = () => {
-  // Redirect to Google OAuth endpoint when button is clicked
-  // This initiates the authentication flow with the backend server
   const handleGoogleLogin = () => {
     window.location.href = 'http://localhost:3000/auth/google';
   };
@@ -18,9 +9,7 @@ const LoginButton = () => {
     <button
       onClick={handleGoogleLogin}
       className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
-      aria-label="Sign in with Google"
     >
-      {/* Google "G" logo SVG with official brand colors */}
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path
           fill="#4285F4"

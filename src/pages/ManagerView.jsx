@@ -1,48 +1,39 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-/**
- * ManagerView Component
- * 
- * A comprehensive management dashboard for restaurant operations.
- * Features inventory management, sales reporting, menu item management,
- * and daily/hourly reports. Requires authentication for access.
- * Integrates with backend APIs for data management and reporting.
- */
 export default function ManagerView() {
   const navigate = useNavigate();
   
-  // Authentication State - Manages user login status and user information
+  // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Tab Navigation & Data State - Controls which section is active and stores data
-  const [activeTab, setActiveTab] = useState('inventory'); // Current active tab
-  const [inventory, setInventory] = useState([]); // Inventory items from database
+  // Tab & Data State
+  const [activeTab, setActiveTab] = useState('inventory');
+  const [inventory, setInventory] = useState([]);
   
-  // Sales Report State - Manages sales data filtering and results
-  const [salesData, setSalesData] = useState([]); // Sales report results
-  const [salesDates, setSalesDates] = useState({ start: '', end: '' }); // Date range filter
+  // Sales Report State
+  const [salesData, setSalesData] = useState([]);
+  const [salesDates, setSalesDates] = useState({ start: '', end: '' });
 
-  // X/Z Report State - Daily and hourly reporting data
-  const [xReport, setXReport] = useState(null); // Hourly breakdown report
-  const [zReport, setZReport] = useState(null); // End-of-day summary report
+  // X/Z Report State
+  const [xReport, setXReport] = useState(null);
+  const [zReport, setZReport] = useState(null);
 
-  // New Menu Item State - Form data for adding new menu items
+  // New Menu Item State
   const [newItem, setNewItem] = useState({ name: '', price: '', ingredients: '' });
 
-  // Check authentication status on component mount
+  // Check authentication status on mount
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
-  // Fetch inventory data when user becomes authenticated
+  // Fetch inventory when authenticated
   useEffect(() => {
     if (isAuthenticated) fetchInventory();
   }, [isAuthenticated]);
 
-  // Check if user is authenticated with backend
   const checkAuthStatus = async () => {
     try {
       const res = await fetch('/api/auth/status');
@@ -61,7 +52,6 @@ export default function ManagerView() {
     }
   };
 
-  // Fetch current inventory levels from database
   const fetchInventory = async () => {
     try {
       const res = await fetch('/api/inventory');
@@ -70,13 +60,11 @@ export default function ManagerView() {
     } catch (err) { console.error(err); }
   };
 
-  // Initiate Google OAuth login flow
   const handleGoogleLogin = () => {
     // Redirect to Google OAuth endpoint
     window.location.href = '/auth/google';
   };
 
-  // Handle user logout and redirect to portal
   const handleLogout = async () => {
     try {
       await fetch('/auth/logout');
@@ -89,8 +77,6 @@ export default function ManagerView() {
   };
 
   // --- REPORTING FUNCTIONS ---
-  
-  // Generate sales report for selected date range
   const generateSalesReport = async () => {
     if (!salesDates.start || !salesDates.end) {
       alert('Please select both start and end dates');

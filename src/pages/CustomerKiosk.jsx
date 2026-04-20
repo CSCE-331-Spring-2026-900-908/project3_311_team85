@@ -35,6 +35,9 @@ export default function CustomerKiosk() {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
+  const [pendingFreeDrinks, setPendingFreeDrinks] = useState(0);
+  const pendingFreeDrinksRef = useRef(0);
+  const rewardLockedRef = useRef(false);
 
   // --- Accessibility Navigation State ---
   const gridRef = useRef(null);
@@ -48,6 +51,22 @@ export default function CustomerKiosk() {
   const [currentSugar, setCurrentSugar] = useState('100%');
   const [selectedToppings, setSelectedToppings] = useState([]);
 
+  const makeCartItemFree = (item) => {
+    if (item.isFreeDrink) return item;
+
+    return {
+      ...item,
+      finalPrice: 0,
+      isFreeDrink: true,
+      originalPrice: item.finalPrice,
+    };
+  };
+
+  useEffect(() => {
+    pendingFreeDrinksRef.current = pendingFreeDrinks;
+    rewardLockedRef.current = pendingFreeDrinks > 0;
+  }, [pendingFreeDrinks]);
+  
   useEffect(() => {
     const fetchMenu = async () => {
       try {
@@ -58,6 +77,59 @@ export default function CustomerKiosk() {
       finally { setLoading(false); }
     };
     fetchMenu();
+  }, []);
+
+  // --- GAME MESSAGE LISTENER ---
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // Handle free drink reward from game
+      if (event.data && event.data.type === 'FREE_DRINK_EARNED') {
+        if (rewardLockedRef.current) {
+          return;
+        }
+
+        const { message } = event.data;
+        rewardLockedRef.current = true;
+        
+        setCart(prevCart => {
+          const alreadyHasReward =
+            pendingFreeDrinksRef.current > 0 ||
+            prevCart.some(item => item.isFreeDrink);
+
+          if (alreadyHasReward) {
+            return prevCart;
+          }
+
+          // Find the first non-free drink in the cart
+          const paidDrinkIndex = prevCart.findIndex(item => !item.isFreeDrink);
+          
+          if (paidDrinkIndex !== -1) {
+            // Create a new cart array with the selected drink made free
+            const newCart = [...prevCart];
+            const drinkToMakeFree = makeCartItemFree(newCart[paidDrinkIndex]);
+            newCart[paidDrinkIndex] = drinkToMakeFree;
+            
+            // Show success message with the drink name
+            alert(message + ` ${drinkToMakeFree.item_name} is now free! Original price: $${drinkToMakeFree.originalPrice.toFixed(2)}`);
+            
+            return newCart;
+          } else {
+            pendingFreeDrinksRef.current += 1;
+            setPendingFreeDrinks(prev => prev + 1);
+            alert(message + ' Your next drink added to the cart will be free!');
+            return prevCart;
+          }
+        });
+      }
+    };
+
+    // Add message listener
+    window.addEventListener('message', handleMessage);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   // --- TRUE 2D KEYBOARD NAVIGATION ---
@@ -145,16 +217,24 @@ export default function CustomerKiosk() {
 
   const confirmCustomization = () => {
     const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
-    const cartItem = {
+    let cartItem = {
       ...customizingItem, cartId: Date.now() + Math.random(), 
       ice: currentIce, sugar: currentSugar, toppings: selectedToppings,
       finalPrice: Number(customizingItem.price) + toppingTotal
     };
+    if (pendingFreeDrinksRef.current > 0) {
+      cartItem = makeCartItemFree(cartItem);
+      pendingFreeDrinksRef.current = Math.max(0, pendingFreeDrinksRef.current - 1);
+      rewardLockedRef.current = false;
+      setPendingFreeDrinks(pendingFreeDrinksRef.current);
+      alert(`${cartItem.item_name} was added as your free reward drink!`);
+    }
     setCart([...cart, cartItem]); setCustomizingItem(null); setFocusArea('CHECKOUT'); // Auto jump to checkout area
   };
 
   const removeFromCart = (cartIdToRemove) => setCart(cart.filter(item => item.cartId !== cartIdToRemove));
   const calculateTotal = () => cart.reduce((total, item) => total + item.finalPrice, 0).toFixed(2);
+
 
   const handleCheckout = async () => {
     if (cart.length === 0) return alert("Your cart is empty!");
@@ -166,7 +246,8 @@ export default function CustomerKiosk() {
       if (!response.ok) throw new Error('Checkout failed');
       const result = await response.json();
       alert(`Success! Order #${result.orderId} is being prepared.`);
-      setCart([]); setFocusArea('MENU'); // Return focus to menu
+      rewardLockedRef.current = false;
+      setCart([]); setPendingFreeDrinks(0); setFocusArea('MENU'); // Return focus to menu
     } catch (error) { alert("Error submitting order."); }
   };
 
@@ -274,15 +355,34 @@ export default function CustomerKiosk() {
 
         <div style={{ flex: '1', backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
           <h2 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>{t('customer.yourOrder')}</h2>
+          {pendingFreeDrinks > 0 && (
+            <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '8px', backgroundColor: '#edf8ee', color: '#2e7d32', fontWeight: 'bold' }}>
+              Free drink reward ready: the next drink you add will be free.
+            </div>
+          )}
           {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
             <>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>
                 {cart.map((item) => (
                   <li key={item.cartId} style={{ marginBottom: '15px', borderBottom: '1px dashed #ddd', paddingBottom: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
-                      <strong style={{ fontSize: '1.1em' }}>{item.item_name}</strong>
+                      <strong style={{ fontSize: '1.1em' }}>
+                        {item.item_name}
+                        {item.isFreeDrink ? ' (FREE!)' : ''}
+                      </strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <strong>${item.finalPrice.toFixed(2)}</strong>
+                        {item.isFreeDrink ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ textDecoration: 'line-through', color: '#888', fontSize: '0.9em' }}>
+                              ${item.originalPrice.toFixed(2)}
+                            </span>
+                            <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '1.1em' }}>
+                              FREE!
+                            </span>
+                          </div>
+                        ) : (
+                          <strong>${item.finalPrice.toFixed(2)}</strong>
+                        )}
                       </div>
                     </div>
                   </li>
@@ -307,6 +407,36 @@ export default function CustomerKiosk() {
             </>
           )}
         </div>
+      </div>
+      
+      {/* Dino Game Button - Under Cart */}
+      <div style={{ marginTop: '20px', textAlign: 'center' }}>
+        <button 
+          onClick={() => {
+            const gameWindow = window.open('/dino.html', 'dinoGame', 'width=800,height=400');
+            if (gameWindow && !gameWindow.closed) {
+              // Focus on the game window
+              gameWindow.focus();
+            }
+          }}
+          style={{
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            padding: '12px 24px',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            transition: 'background-color 0.3s'
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
+          onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
+        >
+          Play Boba Tea Game (Win Free Drink!)
+        </button>
+        <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+          Score 100+ points and make a drink in your cart free!
+        </p>
       </div>
       
       {/* Chatbot Component */}

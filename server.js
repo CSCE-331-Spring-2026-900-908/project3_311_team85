@@ -48,6 +48,13 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Authorized users list for manager access
+const AUTHORIZED_USERS = [
+  'dsenaarul@tamu.edu',
+  'dsenaarul5@gmail.com'
+  // Add other authorized users here
+];
+
 // Passport Google OAuth2 Strategy
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 passport.use(new GoogleStrategy({
@@ -55,12 +62,19 @@ passport.use(new GoogleStrategy({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: `${backendUrl}/auth/google/callback`
 }, (accessToken, refreshToken, profile, done) => {
-  return done(null, {
-    id: profile.id,
-    email: profile.emails[0].value,
-    name: profile.displayName,
-    avatar: profile.photos[0].value
-  });
+  const userEmail = profile.emails[0].value;
+  
+  // Check if user is authorized for manager access
+  if (AUTHORIZED_USERS.includes(userEmail)) {
+    return done(null, {
+      id: profile.id,
+      email: userEmail,
+      name: profile.displayName,
+      avatar: profile.photos[0].value
+    });
+  } else {
+    return done(null, false, { message: 'Access denied. User not authorized for manager access.' });
+  }
 }));
 
 // Serialize and deserialize user for session management
@@ -87,7 +101,9 @@ app.get('/auth/google',
 );
 
 app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
+  passport.authenticate('google', { 
+    failureRedirect: '/login?error=access_denied'
+  }),
   (req, res) => {
     // Successful authentication, redirect to manager view on frontend
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -100,6 +116,18 @@ app.get('/auth/logout', (req, res, next) => {
     if (err) return next(err);
     res.redirect('/');
   });
+});
+
+// Login route for unauthorized users
+app.get('/login', (req, res) => {
+  if (req.isAuthenticated()) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/manager`);
+  }
+  
+  // Serve login page or redirect to frontend login
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  res.redirect(`${frontendUrl}/login${req.query.error ? '?error=' + req.query.error : ''}`);
 });
 
 // API route to check authentication status

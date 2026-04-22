@@ -48,19 +48,55 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Authorized users list for manager access
+const AUTHORIZED_USERS = [
+  'dsenaarul@tamu.edu',
+  'aayush_gadamshetty1@tamu.edu',
+  'braydenfayomi@tamu.edu',
+  'motun21@tamu.edu',
+  'rishimanihar@tamu.edu',
+  'reveille.bubbletea@gmail.com'
+  // Add authorized users here
+];
+
+// Check if Google OAuth credentials are configured
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!googleClientId || !googleClientSecret) {
+  console.error('ERROR: Google OAuth credentials not found in environment variables.');
+  console.error('Please copy .env.example to .env and add your Google OAuth credentials.');
+  process.exit(1);
+}
+
 // Passport Google OAuth2 Strategy
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  clientID: googleClientId,
+  clientSecret: googleClientSecret,
   callbackURL: `${backendUrl}/auth/google/callback`
 }, (accessToken, refreshToken, profile, done) => {
-  return done(null, {
-    id: profile.id,
-    email: profile.emails[0].value,
-    name: profile.displayName,
-    avatar: profile.photos[0].value
-  });
+  const userEmail = profile.emails[0].value;
+  
+  console.log('=== OAuth Authentication Attempt ===');
+  console.log('User Email:', userEmail);
+  console.log('User Name:', profile.displayName);
+  console.log('Authorized Users:', AUTHORIZED_USERS);
+  console.log('Is Authorized:', AUTHORIZED_USERS.includes(userEmail));
+  
+  // Check if user is authorized for manager access
+  if (AUTHORIZED_USERS.includes(userEmail)) {
+    console.log('ACCESS GRANTED - User is authorized');
+    return done(null, {
+      id: profile.id,
+      email: userEmail,
+      name: profile.displayName,
+      avatar: profile.photos[0].value
+    });
+  } else {
+    console.log('ACCESS DENIED - User not authorized for manager access');
+    return done(null, false, { message: 'Access denied. User not authorized for manager access.' });
+  }
 }));
 
 // Serialize and deserialize user for session management
@@ -87,10 +123,16 @@ app.get('/auth/google',
 );
 
 app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
+  passport.authenticate('google', { 
+    failureRedirect: '/login?error=access_denied'
+  }),
   (req, res) => {
+    console.log('=== OAuth Callback Success ===');
+    console.log('Authenticated User:', req.user);
+    
     // Successful authentication, redirect to manager view on frontend
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    console.log('Redirecting to:', `${frontendUrl}/manager`);
     res.redirect(`${frontendUrl}/manager`);
   }
 );
@@ -100,6 +142,18 @@ app.get('/auth/logout', (req, res, next) => {
     if (err) return next(err);
     res.redirect('/');
   });
+});
+
+// Login route for unauthorized users
+app.get('/login', (req, res) => {
+  if (req.isAuthenticated()) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/manager`);
+  }
+  
+  // Serve login page or redirect to frontend login
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  res.redirect(`${frontendUrl}/login${req.query.error ? '?error=' + req.query.error : ''}`);
 });
 
 // API route to check authentication status
@@ -161,7 +215,7 @@ app.post('/api/chat', async (req, res) => {
 
     // 2. Initialize Gemini AI
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     // 3. Create context-aware prompt
     const prompt = `You are a helpful and friendly AI assistant for a restaurant kiosk. 
@@ -185,53 +239,52 @@ app.post('/api/chat', async (req, res) => {
 // ==========================================
 
 // 1. Get Sales Report (Date Range)
-app.get('/api/reports/sales', ensureAuthenticated, async (req, res) => {
+app.get('/api/reports/sales', async (req, res) => {
   const { start, end } = req.query;
   try {
     const sql = `
       SELECT m.item_name, COUNT(oi.menu_id) as quantity_sold, SUM(m.price) as total_revenue 
       FROM menu m 
       JOIN order_items oi ON m.id = oi.menu_id 
-      JOIN orders o ON oi.order_id = o.id 
-      WHERE DATE(o.order_timestamp) BETWEEN $1 AND $2 
+      JOIN orders o ON oi.order_id = o.order_id  -- FIXED: o.order_id instead of o.id
+      WHERE DATE(o.order_time) BETWEEN $1 AND $2 -- FIXED: order_time
       GROUP BY m.id, m.item_name 
       ORDER BY quantity_sold DESC
     `;
     const result = await pool.query(sql, [start, end]);
     res.json(result.rows);
   } catch (err) {
-    console.error('Sales Report SQL Error:', err.message);
-    res.status(500).json({ error: 'Server error generating sales report: ' + err.message });
+    console.error("Sales Report SQL Error:", err.message);
+    res.status(500).json({ error: 'Server error generating sales report' });
   }
 });
 
 // 2. Get X-Report (Current Day Hourly Breakdown)
-app.get('/api/reports/xreport', ensureAuthenticated, async (req, res) => {
+app.get('/api/reports/xreport', async (req, res) => {
   try {
     const hourlySql = `
-      SELECT EXTRACT(HOUR FROM order_timestamp) as hour, 
+      SELECT EXTRACT(HOUR FROM order_time) as hour, -- FIXED: order_time
       COUNT(*) as order_count, 
-      SUM(total_amount) as total_sales 
+      SUM(total_price) as total_sales -- FIXED: total_price
       FROM orders 
-      WHERE DATE(order_timestamp) = CURRENT_DATE 
-      GROUP BY EXTRACT(HOUR FROM order_timestamp)
-      ORDER BY hour
+      WHERE DATE(order_time) = CURRENT_DATE -- FIXED: order_time
+      GROUP BY hour ORDER BY hour
     `;
     const result = await pool.query(hourlySql);
     res.json(result.rows);
   } catch (err) {
-    console.error('X-Report SQL Error:', err.message);
-    res.status(500).json({ error: 'Server error generating X-Report: ' + err.message });
+    console.error("X-Report SQL Error:", err.message);
+    res.status(500).json({ error: 'Server error generating X-Report' });
   }
 });
 
 // 3. Generate & Save Z-Report (End of Day)
-app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
+app.post('/api/reports/zreport', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    const dailySql = `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue FROM orders WHERE DATE(order_timestamp) = CURRENT_DATE`;
+    const dailySql = `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_price), 0) as total_revenue FROM orders WHERE DATE(order_time) = CURRENT_DATE`;
     const rs = await client.query(dailySql);
     
     const total_orders = rs.rows[0].total_orders;
@@ -245,8 +298,8 @@ app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
     res.json({ message: 'Z-Report Generated', data: { total_orders, total_revenue, taxAmount } });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Z-Report SQL Error:', err.message);
-    res.status(500).json({ error: 'Server error generating Z-Report: ' + err.message });
+    console.error("Z-Report SQL Error:", err.message);
+    res.status(500).json({ error: 'Server error generating Z-Report' });
   } finally {
     client.release();
   }
@@ -295,10 +348,36 @@ app.post('/api/menu', ensureAuthenticated, async (req, res) => {
 });
 
 // ==========================================
+//        EMPLOYEE MANAGEMENT ROUTES
+// ==========================================
+app.get('/api/employees', ensureAuthenticated, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, role FROM employees ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Employees fetch error:', err.message);
+    res.status(500).json({ error: 'Server error fetching employees' });
+  }
+});
+
+app.post('/api/employees', ensureAuthenticated, async (req, res) => {
+  const { name, role } = req.body;
+  if (!name || !role) {
+    return res.status(400).json({ error: 'Name and role are required.' });
+  }
+  try {
+    const insertSql = 'INSERT INTO employees (name, role) VALUES ($1, $2) RETURNING id, name, role';
+    const result = await pool.query(insertSql, [name, role]);
+    res.status(201).json({ employee: result.rows[0], message: 'Employee added successfully.' });
+  } catch (err) {
+    console.error('Employee insert error:', err.message);
+    res.status(500).json({ error: 'Server error adding employee' });
+  }
+});
+
+// ==========================================
 //        CASHIER CHECKOUT ROUTE
 // ==========================================
-// FIXED: Restored inventory depletion logic for base ingredients, sugar, ice, and toppings.
-
 app.post('/api/checkout', async (req, res) => {
   const { total_price, items } = req.body;
 
@@ -311,25 +390,19 @@ app.post('/api/checkout', async (req, res) => {
   try {
     await client.query('BEGIN'); 
 
-    // 1. Create the Order with order_timestamp to match your reporting logic
     const orderInsertQuery = `
-      INSERT INTO orders (total_amount, order_timestamp) 
+      INSERT INTO orders (total_price, order_time) 
       VALUES ($1, NOW()) 
-      RETURNING id; 
+      RETURNING order_id;
     `;
     const orderResult = await client.query(orderInsertQuery, [total_price]);
-    const orderId = orderResult.rows[0].id;
+    const orderId = orderResult.rows[0].order_id;
 
-    const orderItemsInsertQuery = `
-      INSERT INTO order_items (order_id, menu_id) 
-      VALUES ($1, $2);
-    `;
+    const orderItemsInsertQuery = `INSERT INTO order_items (order_id, menu_id) VALUES ($1, $2);`;
     
     for (let item of items) {
-      // 2. Link the base item to the order
       await client.query(orderItemsInsertQuery, [orderId, item.id]);
 
-      // 3. Deduct Base Ingredients (Standard Recipe)
       await client.query(`
         UPDATE inventory i
         SET quantity = i.quantity - mi.quantity_used
@@ -337,7 +410,6 @@ app.post('/api/checkout', async (req, res) => {
         WHERE i.id = mi.inventory_id AND mi.menu_id = $1
       `, [item.id]);
 
-      // 4. Deduct Customizations (Ice & Sugar)
       const iceUnits = item.ice === '120%' ? 3 : item.ice === '100%' ? 2 : item.ice === '50%' ? 1 : 0;
       if (iceUnits > 0) {
         await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Ice%'`, [iceUnits]);
@@ -348,10 +420,8 @@ app.post('/api/checkout', async (req, res) => {
         await client.query(`UPDATE inventory SET quantity = quantity - $1 WHERE item_name ILIKE '%Sugar%'`, [sugarUnits]);
       }
 
-      // 5. Deduct Premium Toppings
       if (item.toppings && item.toppings.length > 0) {
         for (let topping of item.toppings) {
-          // Depletes 1 unit of the selected topping
           await client.query(`UPDATE inventory SET quantity = quantity - 1 WHERE item_name ILIKE $1`, [`%${topping.name}%`]);
         }
       }

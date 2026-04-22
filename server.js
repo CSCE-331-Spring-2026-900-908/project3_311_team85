@@ -51,7 +51,6 @@ app.use(passport.session());
 // Authorized users list for manager access
 const AUTHORIZED_USERS = [
   'dsenaarul@tamu.edu',
-  'dsenaarul5@gmail.com',
   'aayush_gadamshetty1@tamu.edu',
   'braydenfayomi@tamu.edu',
   'motun21@tamu.edu',
@@ -79,8 +78,15 @@ passport.use(new GoogleStrategy({
 }, (accessToken, refreshToken, profile, done) => {
   const userEmail = profile.emails[0].value;
   
+  console.log('=== OAuth Authentication Attempt ===');
+  console.log('User Email:', userEmail);
+  console.log('User Name:', profile.displayName);
+  console.log('Authorized Users:', AUTHORIZED_USERS);
+  console.log('Is Authorized:', AUTHORIZED_USERS.includes(userEmail));
+  
   // Check if user is authorized for manager access
   if (AUTHORIZED_USERS.includes(userEmail)) {
+    console.log('ACCESS GRANTED - User is authorized');
     return done(null, {
       id: profile.id,
       email: userEmail,
@@ -88,6 +94,7 @@ passport.use(new GoogleStrategy({
       avatar: profile.photos[0].value
     });
   } else {
+    console.log('ACCESS DENIED - User not authorized for manager access');
     return done(null, false, { message: 'Access denied. User not authorized for manager access.' });
   }
 }));
@@ -120,8 +127,12 @@ app.get('/auth/google/callback',
     failureRedirect: '/login?error=access_denied'
   }),
   (req, res) => {
+    console.log('=== OAuth Callback Success ===');
+    console.log('Authenticated User:', req.user);
+    
     // Successful authentication, redirect to manager view on frontend
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    console.log('Redirecting to:', `${frontendUrl}/manager`);
     res.redirect(`${frontendUrl}/manager`);
   }
 );

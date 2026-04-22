@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const authService = {
   // Check if user is authenticated
@@ -24,7 +24,6 @@ export const authService = {
   async logout() {
     try {
       await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
         credentials: 'include'
       });
       window.location.href = '/';

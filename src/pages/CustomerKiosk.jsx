@@ -35,9 +35,6 @@ export default function CustomerKiosk() {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
-  const [pendingFreeDrinks, setPendingFreeDrinks] = useState(0);
-  const pendingFreeDrinksRef = useRef(0);
-  const rewardLockedRef = useRef(false);
 
   // --- Accessibility Navigation State ---
   const gridRef = useRef(null);
@@ -50,22 +47,6 @@ export default function CustomerKiosk() {
   const [currentIce, setCurrentIce] = useState('100%');
   const [currentSugar, setCurrentSugar] = useState('100%');
   const [selectedToppings, setSelectedToppings] = useState([]);
-
-  const makeCartItemFree = (item) => {
-    if (item.isFreeDrink) return item;
-
-    return {
-      ...item,
-      finalPrice: 0,
-      isFreeDrink: true,
-      originalPrice: item.finalPrice,
-    };
-  };
-
-  useEffect(() => {
-    pendingFreeDrinksRef.current = pendingFreeDrinks;
-    rewardLockedRef.current = pendingFreeDrinks > 0;
-  }, [pendingFreeDrinks]);
   
   useEffect(() => {
     const fetchMenu = async () => {
@@ -84,39 +65,35 @@ export default function CustomerKiosk() {
     const handleMessage = (event) => {
       // Handle free drink reward from game
       if (event.data && event.data.type === 'FREE_DRINK_EARNED') {
-        if (rewardLockedRef.current) {
-          return;
-        }
-
-        const { message } = event.data;
-        rewardLockedRef.current = true;
+        const { score, message } = event.data;
         
         setCart(prevCart => {
-          const alreadyHasReward =
-            pendingFreeDrinksRef.current > 0 ||
-            prevCart.some(item => item.isFreeDrink);
-
-          if (alreadyHasReward) {
-            return prevCart;
-          }
-
           // Find the first non-free drink in the cart
           const paidDrinkIndex = prevCart.findIndex(item => !item.isFreeDrink);
           
           if (paidDrinkIndex !== -1) {
             // Create a new cart array with the selected drink made free
             const newCart = [...prevCart];
-            const drinkToMakeFree = makeCartItemFree(newCart[paidDrinkIndex]);
+            const drinkToMakeFree = { ...newCart[paidDrinkIndex] };
+            
+            // Store original price for display
+            const originalPrice = drinkToMakeFree.finalPrice;
+            
+            // Zero out the price and mark as free
+            drinkToMakeFree.finalPrice = 0.00;
+            drinkToMakeFree.isFreeDrink = true;
+            drinkToMakeFree.originalPrice = originalPrice;
+            drinkToMakeFree.item_name = drinkToMakeFree.item_name + ' (FREE!)';
+            
             newCart[paidDrinkIndex] = drinkToMakeFree;
             
             // Show success message with the drink name
-            alert(message + ` ${drinkToMakeFree.item_name} is now free! Original price: $${drinkToMakeFree.originalPrice.toFixed(2)}`);
+            alert(message + ` ${drinkToMakeFree.item_name.replace(' (FREE!)', '')} is now free! Original price: $${originalPrice.toFixed(2)}`);
             
             return newCart;
           } else {
-            pendingFreeDrinksRef.current += 1;
-            setPendingFreeDrinks(prev => prev + 1);
-            alert(message + ' Your next drink added to the cart will be free!');
+            // No drinks in cart to make free
+            alert(message + ' Add a drink to your cart first to make it free!');
             return prevCart;
           }
         });
@@ -217,18 +194,11 @@ export default function CustomerKiosk() {
 
   const confirmCustomization = () => {
     const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
-    let cartItem = {
+    const cartItem = {
       ...customizingItem, cartId: Date.now() + Math.random(), 
       ice: currentIce, sugar: currentSugar, toppings: selectedToppings,
       finalPrice: Number(customizingItem.price) + toppingTotal
     };
-    if (pendingFreeDrinksRef.current > 0) {
-      cartItem = makeCartItemFree(cartItem);
-      pendingFreeDrinksRef.current = Math.max(0, pendingFreeDrinksRef.current - 1);
-      rewardLockedRef.current = false;
-      setPendingFreeDrinks(pendingFreeDrinksRef.current);
-      alert(`${cartItem.item_name} was added as your free reward drink!`);
-    }
     setCart([...cart, cartItem]); setCustomizingItem(null); setFocusArea('CHECKOUT'); // Auto jump to checkout area
   };
 
@@ -246,8 +216,7 @@ export default function CustomerKiosk() {
       if (!response.ok) throw new Error('Checkout failed');
       const result = await response.json();
       alert(`Success! Order #${result.orderId} is being prepared.`);
-      rewardLockedRef.current = false;
-      setCart([]); setPendingFreeDrinks(0); setFocusArea('MENU'); // Return focus to menu
+      setCart([]); setFocusArea('MENU'); // Return focus to menu
     } catch (error) { alert("Error submitting order."); }
   };
 
@@ -355,21 +324,13 @@ export default function CustomerKiosk() {
 
         <div style={{ flex: '1', backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
           <h2 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>{t('customer.yourOrder')}</h2>
-          {pendingFreeDrinks > 0 && (
-            <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '8px', backgroundColor: '#edf8ee', color: '#2e7d32', fontWeight: 'bold' }}>
-              Free drink reward ready: the next drink you add will be free.
-            </div>
-          )}
           {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
             <>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>
                 {cart.map((item) => (
                   <li key={item.cartId} style={{ marginBottom: '15px', borderBottom: '1px dashed #ddd', paddingBottom: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
-                      <strong style={{ fontSize: '1.1em' }}>
-                        {item.item_name}
-                        {item.isFreeDrink ? ' (FREE!)' : ''}
-                      </strong>
+                      <strong style={{ fontSize: '1.1em' }}>{item.item_name}</strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         {item.isFreeDrink ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -432,7 +393,7 @@ export default function CustomerKiosk() {
           onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
           onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
         >
-          Play Boba Tea Game (Win Free Drink!)
+          Play T-Rex Game (Win Free Drink!)
         </button>
         <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
           Score 100+ points and make a drink in your cart free!

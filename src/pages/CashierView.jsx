@@ -1,41 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// Premium toppings available for customization with pricing
 const TOPPINGS = [
   { id: 't1', name: 'Tapioca Boba', price: 0.50 },
   { id: 't2', name: 'Lychee Jelly', price: 0.50 },
   { id: 't3', name: 'Crystal Boba', price: 0.75 },
   { id: 't4', name: 'Cheese Foam', price: 1.00 },
 ];
-
-// Available ice and sugar levels for drink customization
 const ICE_LEVELS = ['0%', '50%', '100%', '120%'];
 const SUGAR_LEVELS = ['0%', '50%', '100%', '120%'];
 
-/**
- * CashierView Component
- * 
- * A Point of Sale (POS) interface for cashiers to take customer orders.
- * Features menu item selection, customization options (ice, sugar, toppings),
- * ticket management, and checkout functionality. Integrates with backend
- * for menu data and order processing.
- */
 export default function CashierView() {
   const navigate = useNavigate();
   
-  // Core POS state
-  const [menuItems, setMenuItems] = useState([]); // Available menu items from API
-  const [loading, setLoading] = useState(true); // Loading state for menu fetch
-  const [currentTicket, setCurrentTicket] = useState([]); // Current order items
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentTicket, setCurrentTicket] = useState([]);
 
-  // Customization modal state
-  const [customizingItem, setCustomizingItem] = useState(null); // Item being customized
-  const [currentIce, setCurrentIce] = useState('100%'); // Selected ice level
-  const [currentSugar, setCurrentSugar] = useState('100%'); // Selected sugar level
-  const [selectedToppings, setSelectedToppings] = useState([]); // Selected premium toppings
+  // Customization State
+  const [customizingItem, setCustomizingItem] = useState(null);
+  const [currentIce, setCurrentIce] = useState('100%');
+  const [currentSugar, setCurrentSugar] = useState('100%');
+  const [selectedToppings, setSelectedToppings] = useState([]);
 
-  // Fetch menu items from API on component mount
   useEffect(() => {
     const fetchMenu = async () => {
       try {
@@ -49,8 +36,6 @@ export default function CashierView() {
   }, []);
 
   // --- CUSTOMIZATION LOGIC ---
-  
-  // Open customization modal for selected item and reset customization options
   const handleItemTap = (item) => {
     setCustomizingItem(item);
     setCurrentIce('100%');
@@ -58,7 +43,6 @@ export default function CashierView() {
     setSelectedToppings([]);
   };
 
-  // Toggle topping selection - add if not selected, remove if already selected
   const toggleTopping = (topping) => {
     if (selectedToppings.some(t => t.id === topping.id)) {
       setSelectedToppings(selectedToppings.filter(t => t.id !== topping.id));
@@ -67,14 +51,13 @@ export default function CashierView() {
     }
   };
 
-  // Add customized item to current ticket with all modifications and calculated price
   const confirmCustomization = () => {
     const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
     const finalPrice = Number(customizingItem.price) + toppingTotal;
 
     const ticketItem = {
       ...customizingItem,
-      ticketId: Date.now() + Math.random(), // Unique identifier for ticket item
+      ticketId: Date.now() + Math.random(),
       ice: currentIce,
       sugar: currentSugar,
       toppings: selectedToppings,
@@ -85,26 +68,19 @@ export default function CashierView() {
     setCustomizingItem(null);
   };
 
-  // Remove specific item from ticket by ID
   const removeFromTicket = (ticketIdToRemove) => {
     setCurrentTicket(currentTicket.filter(item => item.ticketId !== ticketIdToRemove));
   };
 
-  // Clear all items from current ticket
   const clearTicket = () => setCurrentTicket([]);
 
-  // Calculate total price of all items in current ticket
   const calculateTotal = () => currentTicket.reduce((total, item) => total + item.finalPrice, 0).toFixed(2);
 
   // --- CHECKOUT ---
-  
-  // Process order by sending ticket data to backend for payment and inventory updates
   const handleCheckout = async () => {
-    // Prevent checkout if ticket is empty
     if (currentTicket.length === 0) return alert("Cannot checkout an empty ticket!");
 
     try {
-      // Send ticket data to backend for processing
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,22 +90,18 @@ export default function CashierView() {
         }),
       });
 
-      // Handle successful checkout response
       if (!response.ok) throw new Error('Checkout failed');
       const result = await response.json();
       alert(`Success! Order #${result.orderId} processed.`);
-      clearTicket(); // Clear ticket after successful checkout
+      clearTicket(); 
 
     } catch (error) {
-      // Handle checkout errors
       console.error('Error during checkout:', error);
-      alert("There was an error processing order.");
+      alert("There was an error processing the order.");
     }
   };
 
   // --- STYLES ---
-  
-  // Dynamic button style for customization options - highlights selected items
   const optionBtnStyle = (isSelected) => ({
     padding: '12px', borderRadius: '6px', border: isSelected ? '2px solid #2b6cb0' : '1px solid #ccc',
     backgroundColor: isSelected ? '#ebf8ff' : '#fff', cursor: 'pointer', fontWeight: isSelected ? 'bold' : 'normal',
@@ -139,7 +111,7 @@ export default function CashierView() {
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7f6' }}>
       
-      {/* CUSTOMIZATION OVERLAY - Modal for customizing selected menu item */}
+      {/* CUSTOMIZATION OVERLAY */}
       {customizingItem && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
@@ -209,7 +181,6 @@ export default function CashierView() {
           )}
         </div>
 
-        {/* Current Ticket Panel - Shows all items in the order */}
         <div style={{ flex: '1', backgroundColor: '#fff', border: '2px solid #333', borderRadius: '8px', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <div style={{ backgroundColor: '#333', color: '#fff', padding: '15px', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}>
             Current Ticket

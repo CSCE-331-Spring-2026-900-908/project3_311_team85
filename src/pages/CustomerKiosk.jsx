@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TextSizeToggle from '../components/TextSizeToggle';
 import Chatbot from '../components/Chatbot';
+import SpinningWheel from '../components/SpinningWheel';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
 
@@ -13,6 +14,15 @@ const TOPPINGS = [
 ];
 const ICE_LEVELS = ['0%', '50%', '100%', '120%'];
 const SUGAR_LEVELS = ['0%', '50%', '100%', '120%'];
+
+// Available coupons
+const AVAILABLE_COUPONS = [
+  { code: 'BOBA10', discount: 0.10, description: '10% off your order', type: 'percentage' },
+  { code: 'SWEET15', discount: 0.15, description: '15% off your order', type: 'percentage' },
+  { code: 'FREESHIP', discount: 2.00, description: '$2.00 off your order', type: 'fixed' },
+  { code: 'HAPPY20', discount: 0.20, description: '20% off orders over $10', type: 'percentage', minOrder: 10 },
+  { code: 'STUDENT5', discount: 1.50, description: '$1.50 off (student special)', type: 'fixed' }
+];
 
 // Map the modal into a rigid 2D layout for Up/Down arrow navigation
 const toppingsRows = [];
@@ -35,6 +45,11 @@ export default function CustomerKiosk() {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [showWheel, setShowWheel] = useState(false);
+  const [hasSpunToday, setHasSpunToday] = useState(false);
+  const [wheelPrize, setWheelPrize] = useState(null);
 
   // --- Accessibility Navigation State ---
   const gridRef = useRef(null);
@@ -203,7 +218,104 @@ export default function CustomerKiosk() {
   };
 
   const removeFromCart = (cartIdToRemove) => setCart(cart.filter(item => item.cartId !== cartIdToRemove));
-  const calculateTotal = () => cart.reduce((total, item) => total + item.finalPrice, 0).toFixed(2);
+  
+  const validateCoupon = (code) => {
+    const coupon = AVAILABLE_COUPONS.find(c => c.code.toUpperCase() === code.toUpperCase());
+    if (!coupon) return { valid: false, error: 'Invalid coupon code' };
+    
+    const subtotal = cart.reduce((total, item) => total + item.finalPrice, 0);
+    if (coupon.minOrder && subtotal < coupon.minOrder) {
+      return { valid: false, error: `Minimum order of $${coupon.minOrder} required` };
+    }
+    
+    return { valid: true, coupon };
+  };
+  
+  const applyCoupon = () => {
+    if (!couponCode.trim()) {
+      alert('Please enter a coupon code');
+      return;
+    }
+    
+    const validation = validateCoupon(couponCode);
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+    
+    setAppliedCoupon(validation.coupon);
+    setCouponCode('');
+  };
+  
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+  };
+  
+  const calculateTotal = () => {
+    const subtotal = cart.reduce((total, item) => total + item.finalPrice, 0);
+    if (!appliedCoupon) return subtotal.toFixed(2);
+    
+    let discount = 0;
+    if (appliedCoupon.type === 'percentage') {
+      discount = subtotal * appliedCoupon.discount;
+    } else {
+      discount = appliedCoupon.discount;
+    }
+    
+    return Math.max(0, subtotal - discount).toFixed(2);
+  };
+  
+  const calculateDiscount = () => {
+    if (!appliedCoupon) return 0;
+    
+    const subtotal = cart.reduce((total, item) => total + item.finalPrice, 0);
+    if (appliedCoupon.type === 'percentage') {
+      return (subtotal * appliedCoupon.discount).toFixed(2);
+    } else {
+      return appliedCoupon.discount.toFixed(2);
+    }
+  };
+  
+  const handleWheelComplete = (prize) => {
+    setWheelPrize(prize);
+    setHasSpunToday(true);
+    
+    // Apply prize effects
+    switch (prize.type) {
+      case 'percentage':
+        // Apply percentage discount as a coupon
+        setAppliedCoupon({
+          code: 'WHEEL_BONUS',
+          description: `${prize.text} from Wheel of Fortune!`,
+          type: 'percentage',
+          discount: prize.value
+        });
+        break;
+      case 'fixed':
+        // Apply fixed discount as a coupon
+        setAppliedCoupon({
+          code: 'WHEEL_BONUS',
+          description: `${prize.text} from Wheel of Fortune!`,
+          type: 'fixed',
+          discount: prize.value
+        });
+        break;
+      case 'free_topping':
+        alert(`Congratulations! You won a ${prize.text}! Add a drink to your cart and we'll add a free topping.`);
+        break;
+      case 'free_upgrade':
+        alert(`Congratulations! You won a ${prize.text}! Your next drink will be upgraded for free.`);
+        break;
+      case 'boba_bonus':
+        alert(`Congratulations! You won ${prize.text}! You get extra boba on your next drink!`);
+        break;
+      case 'nothing':
+        alert('Better luck next time! Try again tomorrow.');
+        break;
+      default:
+        break;
+    }
+  };
 
 
   const handleCheckout = async () => {
@@ -292,7 +404,7 @@ export default function CustomerKiosk() {
         <div><TextSizeToggle /></div>
       </div>
 
-      <div style={{ display: 'flex', gap: '40px' }}>
+      <div style={{ display: 'flex', gap: '30px' }}>
         <div style={{ flex: '2' }}>
           <h1 id="menu-title">{t('customer.title')}</h1>
           <p style={{ color: '#666', marginBottom: '20px' }}>Use Arrow Keys to navigate. Arrow Right from the edge to Pay!</p>
@@ -322,84 +434,248 @@ export default function CustomerKiosk() {
           )}
         </div>
 
-        <div style={{ flex: '1', backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>{t('customer.yourOrder')}</h2>
-          {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
-            <>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>
-                {cart.map((item) => (
-                  <li key={item.cartId} style={{ marginBottom: '15px', borderBottom: '1px dashed #ddd', paddingBottom: '15px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
-                      <strong style={{ fontSize: '1.1em' }}>{item.item_name}</strong>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        {item.isFreeDrink ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ textDecoration: 'line-through', color: '#888', fontSize: '0.9em' }}>
-                              ${item.originalPrice.toFixed(2)}
-                            </span>
-                            <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '1.1em' }}>
-                              FREE!
-                            </span>
-                          </div>
-                        ) : (
-                          <strong>${item.finalPrice.toFixed(2)}</strong>
-                        )}
+        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>{t('customer.yourOrder')}</h2>
+            {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
+              <>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>
+                  {cart.map((item) => (
+                    <li key={item.cartId} style={{ marginBottom: '15px', borderBottom: '1px dashed #ddd', paddingBottom: '15px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
+                        <strong style={{ fontSize: '1.1em' }}>{item.item_name}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          {item.isFreeDrink ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ textDecoration: 'line-through', color: '#888', fontSize: '0.9em' }}>
+                                ${item.originalPrice.toFixed(2)}
+                              </span>
+                              <span style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '1.1em' }}>
+                                FREE!
+                              </span>
+                            </div>
+                          ) : (
+                            <strong>${item.finalPrice.toFixed(2)}</strong>
+                          )}
+                        </div>
                       </div>
+                    </li>
+                  ))}
+                </ul>
+                
+                {appliedCoupon && (
+                  <div style={{ backgroundColor: '#e8f5e9', padding: '12px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #4CAF50' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                      <span style={{ fontWeight: 'bold', color: '#2e7d32' }}>Coupon Applied:</span>
+                      <button 
+                        onClick={removeCoupon}
+                        style={{ 
+                          background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', 
+                          fontSize: '18px', fontWeight: 'bold', padding: '0', lineHeight: '1'
+                        }}
+                      >
+                        ×
+                      </button>
                     </div>
-                  </li>
-                ))}
-              </ul>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4em', fontWeight: 'bold', marginBottom: '20px' }}>
-                <span>{t('customer.total')}:</span><span>${calculateTotal()}</span>
+                    <div style={{ fontSize: '0.9em', color: '#555' }}>
+                      {appliedCoupon.description}
+                    </div>
+                    <div style={{ fontSize: '0.85em', color: '#4CAF50', fontWeight: 'bold', marginTop: '3px' }}>
+                      -${calculateDiscount()}
+                    </div>
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.4em', fontWeight: 'bold', marginBottom: '20px' }}>
+                  <span>{t('customer.total')}:</span><span>${calculateTotal()}</span>
+                </div>
+                
+                <button 
+                  onClick={handleCheckout} 
+                  style={{ 
+                    width: '100%', padding: '18px', backgroundColor: '#5c9c5f', color: 'white', 
+                    border: focusArea === 'CHECKOUT' ? '4px solid #aa3bff' : 'none', 
+                    borderRadius: '8px', fontSize: '1.3em', cursor: 'pointer', fontWeight: 'bold',
+                    transform: focusArea === 'CHECKOUT' ? 'scale(1.03)' : 'scale(1)',
+                    boxShadow: focusArea === 'CHECKOUT' ? '0 8px 15px rgba(170, 59, 255, 0.4)' : '0 4px 6px rgba(92, 156, 95, 0.3)'
+                  }}
+                >
+                  {t('customer.payNow')}
+                </button>
+              </>
+            )}
+          </div>
+
+          <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+            <h3 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px', color: '#5c9c5f' }}>Special Offers</h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="Enter coupon code"
+                  style={{ 
+                    flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', 
+                    fontSize: '1em', textTransform: 'uppercase'
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && applyCoupon()}
+                />
+                <button
+                  onClick={applyCoupon}
+                  style={{
+                    padding: '12px 20px',
+                    backgroundColor: '#ff9800',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '1em'
+                  }}
+                >
+                  Apply
+                </button>
               </div>
-              
-              <button 
-                onClick={handleCheckout} 
-                style={{ 
-                  width: '100%', padding: '18px', backgroundColor: '#5c9c5f', color: 'white', 
-                  border: focusArea === 'CHECKOUT' ? '4px solid #aa3bff' : 'none', 
-                  borderRadius: '8px', fontSize: '1.3em', cursor: 'pointer', fontWeight: 'bold',
-                  transform: focusArea === 'CHECKOUT' ? 'scale(1.03)' : 'scale(1)',
-                  boxShadow: focusArea === 'CHECKOUT' ? '0 8px 15px rgba(170, 59, 255, 0.4)' : '0 4px 6px rgba(92, 156, 95, 0.3)'
-                }}
-              >
-                {t('customer.payNow')}
-              </button>
-            </>
-          )}
+            </div>
+
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <h4 style={{ margin: '0 0 15px 0', fontSize: '1.1em', color: '#333' }}>Available Coupons:</h4>
+              {AVAILABLE_COUPONS.map((coupon, index) => (
+                <div 
+                  key={coupon.code}
+                  style={{ 
+                    padding: '12px', marginBottom: '10px', backgroundColor: '#f9f9f9', 
+                    borderRadius: '6px', border: '1px solid #e0e0e0',
+                    cursor: appliedCoupon?.code === coupon.code ? 'not-allowed' : 'pointer',
+                    opacity: appliedCoupon?.code === coupon.code ? 0.6 : 1
+                  }}
+                  onClick={() => !appliedCoupon && setCouponCode(coupon.code)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <span style={{ fontWeight: 'bold', color: '#ff9800' }}>{coupon.code}</span>
+                    <span style={{ fontSize: '0.85em', color: '#666' }}>
+                      {appliedCoupon?.code === coupon.code ? 'Applied' : 'Click to copy'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.9em', color: '#555' }}>{coupon.description}</div>
+                  {coupon.minOrder && (
+                    <div style={{ fontSize: '0.8em', color: '#888', marginTop: '3px' }}>
+                      Min order: ${coupon.minOrder}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Dino Game Button - Under Cart */}
+      {/* Game Buttons - Under Cart */}
       <div style={{ marginTop: '20px', textAlign: 'center' }}>
-        <button 
-          onClick={() => {
-            const gameWindow = window.open('/dino.html', 'dinoGame', 'width=800,height=400');
-            if (gameWindow && !gameWindow.closed) {
-              // Focus on the game window
-              gameWindow.focus();
-            }
-          }}
-          style={{
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            padding: '12px 24px',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            transition: 'background-color 0.3s'
-          }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
-        >
-          Play T-Rex Game (Win Free Drink!)
-        </button>
-        <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
-          Score 100+ points and make a drink in your cart free!
-        </p>
+        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '15px' }}>
+          <button 
+            onClick={() => {
+              const gameWindow = window.open('/dino.html', 'dinoGame', 'width=800,height=400');
+              if (gameWindow && !gameWindow.closed) {
+                gameWindow.focus();
+              }
+            }}
+            style={{
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
+          >
+            Play T-Rex Game (Win Free Drink!)
+          </button>
+          
+          <button 
+            onClick={() => setShowWheel(true)}
+            style={{
+              backgroundColor: '#FF6B6B',
+              color: 'white',
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s'
+            }}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#FF5252'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#FF6B6B'}
+          >
+            Spin the Wheel! Win Prizes!
+          </button>
+        </div>
+        <div style={{ fontSize: '14px', color: '#666' }}>
+          <p style={{ margin: '5px 0' }}>Score 100+ points in T-Rex game for a free drink!</p>
+          <p style={{ margin: '5px 0' }}>Spin the wheel for discounts and prizes!</p>
+        </div>
       </div>
       
+      {/* Spinning Wheel Modal */}
+      {showWheel && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', 
+          justifyContent: 'center', alignItems: 'center', zIndex: 1000 
+        }}>
+          <div style={{ 
+            backgroundColor: '#fff', padding: '30px', borderRadius: '16px', 
+            width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto',
+            position: 'relative'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.8em', color: '#2c3e50' }}>Wheel of Fortune!</h2>
+              <button 
+                onClick={() => setShowWheel(false)} 
+                style={{ 
+                  background: 'none', border: 'none', fontSize: '2em', 
+                  cursor: 'pointer', color: '#666', padding: '0'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <p style={{ color: '#666', marginBottom: '20px', textAlign: 'center' }}>
+              Spin the wheel to win amazing prizes! {hasSpunToday ? 'You can spin once per day.' : ''}
+            </p>
+            
+            <SpinningWheel onSpinComplete={handleWheelComplete} hasSpunToday={hasSpunToday} />
+            
+            {wheelPrize && (
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <button
+                  onClick={() => setShowWheel(false)}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#5c9c5f',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Continue Shopping
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Chatbot Component */}
       <Chatbot />
     </div>

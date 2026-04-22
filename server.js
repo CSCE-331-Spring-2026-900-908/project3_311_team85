@@ -51,15 +51,30 @@ app.use(passport.session());
 // Authorized users list for manager access
 const AUTHORIZED_USERS = [
   'dsenaarul@tamu.edu',
-  'dsenaarul5@gmail.com'
-  // Add other authorized users here
+  'dsenaarul5@gmail.com',
+  'aayush_gadamshetty1@tamu.edu',
+  'braydenfayomi@tamu.edu',
+  'motun21@tamu.edu',
+  'rishimanihar@tamu.edu',
+  'reveille.bubbletea@gmail.com'
+  // Add authorized users here
 ];
+
+// Check if Google OAuth credentials are configured
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!googleClientId || !googleClientSecret) {
+  console.error('ERROR: Google OAuth credentials not found in environment variables.');
+  console.error('Please copy .env.example to .env and add your Google OAuth credentials.');
+  process.exit(1);
+}
 
 // Passport Google OAuth2 Strategy
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  clientID: googleClientId,
+  clientSecret: googleClientSecret,
   callbackURL: `${backendUrl}/auth/google/callback`
 }, (accessToken, refreshToken, profile, done) => {
   const userEmail = profile.emails[0].value;

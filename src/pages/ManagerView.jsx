@@ -24,6 +24,12 @@ export default function ManagerView() {
   // New Menu Item State
   const [newItem, setNewItem] = useState({ name: '', price: '', ingredients: '' });
 
+  // Employee Management State
+  const [employees, setEmployees] = useState([]);
+  const [schedule, setSchedule] = useState([]);
+  const [newEmployee, setNewEmployee] = useState({ name: '', role: '' });
+  const [employeeStatus, setEmployeeStatus] = useState('');
+
   // Check authentication status on mount
   useEffect(() => {
     checkAuthStatus();
@@ -31,7 +37,10 @@ export default function ManagerView() {
 
   // Fetch inventory when authenticated
   useEffect(() => {
-    if (isAuthenticated) fetchInventory();
+    if (isAuthenticated) {
+      fetchInventory();
+      fetchEmployees();
+    }
   }, [isAuthenticated]);
 
   const checkAuthStatus = async () => {
@@ -124,6 +133,66 @@ export default function ManagerView() {
     } catch (err) {
       console.error('Error generating Z-report:', err);
       alert('Failed to generate Z-report: ' + err.message);
+    }
+  };
+
+  // --- EMPLOYEE MANAGEMENT FUNCTIONS ---
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch('/api/employees');
+      if (!res.ok) throw new Error('Failed to load employees');
+      const data = await res.json();
+      setEmployees(data);
+      generateSchedule(data.map(emp => emp.name));
+    } catch (err) {
+      console.error(err);
+      setEmployees([]);
+      setSchedule(['Unable to load schedule at this time.']);
+    }
+  };
+
+  const generateSchedule = (employeeNames) => {
+    if (!employeeNames || employeeNames.length === 0) {
+      setSchedule(['No employees available to generate a schedule.']);
+      return;
+    }
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const scheduleRows = days.map((day) => {
+      const morningEmp = employeeNames[Math.floor(Math.random() * employeeNames.length)];
+      const eveningEmp = employeeNames[Math.floor(Math.random() * employeeNames.length)];
+      return `${day}: ${morningEmp} (Morning) | ${eveningEmp} (Evening)`;
+    });
+    setSchedule(scheduleRows);
+  };
+
+  const handleAddEmployee = async (e) => {
+    e.preventDefault();
+    if (!newEmployee.name.trim() || !newEmployee.role.trim()) {
+      setEmployeeStatus('Please provide both employee name and role.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newEmployee.name.trim(),
+          role: newEmployee.role.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to add employee');
+      }
+      setEmployeeStatus(`Added ${newEmployee.name.trim()} successfully!`);
+      setNewEmployee({ name: '', role: '' });
+      fetchEmployees();
+    } catch (err) {
+      console.error(err);
+      setEmployeeStatus(err.message || 'Employee creation failed');
     }
   };
 
@@ -314,9 +383,79 @@ export default function ManagerView() {
             </div>
           )}
 
-          {/* EMPLOYEES TAB (Placeholder for future Sprint) */}
           {activeTab === 'employees' && (
-            <h2 style={{ textAlign: 'center', color: '#718096', padding: '40px' }}>Employee Management<br/><span style={{fontSize: '16px', fontWeight: 'normal'}}>Coming soon</span></h2>
+            <div>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Employee Management</h2>
+
+              <div style={{ display: 'grid', gap: '25px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div style={{ backgroundColor: '#f7fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <h3 style={{ margin: 0, color: '#2d3748' }}>Current Employees</h3>
+                    <table style={{ ...styles.table, marginTop: '15px' }}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>Name</th>
+                          <th style={styles.th}>Role</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {employees.length === 0 ? (
+                          <tr><td style={styles.td} colSpan="2">No employees loaded.</td></tr>
+                        ) : (
+                          employees.map((emp) => (
+                            <tr key={emp.id || `${emp.name}-${emp.role}`}> 
+                              <td style={styles.td}>{emp.name}</td>
+                              <td style={styles.td}>{emp.role}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ backgroundColor: '#f7fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <h3 style={{ margin: '0 0 12px 0', color: '#2d3748' }}>Weekly Schedule</h3>
+                    {schedule.length === 0 ? (
+                      <p style={{ color: '#718096', marginTop: '10px' }}>Schedule will appear here once employees are loaded.</p>
+                    ) : (
+                      <ul style={{ paddingLeft: '18px', margin: 0, color: '#2d3748', lineHeight: '1.8' }}>
+                        {schedule.map((line, idx) => (
+                          <li key={idx}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ margin: '0 0 16px 0', color: '#2d3748' }}>Add Employee</h3>
+                  <form onSubmit={handleAddEmployee} style={{ display: 'grid', gap: '14px' }}>
+                    <label style={{ fontWeight: '600', color: '#4a5568' }}>Employee Name</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={newEmployee.name}
+                      onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                      placeholder="e.g., Alex Kim"
+                    />
+                    <label style={{ fontWeight: '600', color: '#4a5568' }}>Role</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={newEmployee.role}
+                      onChange={e => setNewEmployee({ ...newEmployee, role: e.target.value })}
+                      placeholder="e.g., Cashier"
+                    />
+                    <button type="submit" style={{ padding: '12px 22px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>
+                      Add Employee
+                    </button>
+                  </form>
+                  {employeeStatus && (
+                    <div style={{ marginTop: '14px', color: '#4a5568', fontSize: '14px' }}>{employeeStatus}</div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -41,8 +41,9 @@ export default function CustomerKiosk() {
 
   // --- Accessibility Navigation State ---
   const gridRef = useRef(null);
-  const [focusArea, setFocusArea] = useState('MENU'); // 'MENU' | 'CHECKOUT'
+  const [focusArea, setFocusArea] = useState('MENU'); // 'MENU' | 'CHECKOUT' | 'CART' | 'GAME' | 'BACK' | 'CART' | 'GAME' | 'BACK'
   const [focusedIndex, setFocusedIndex] = useState(0); // For the main grid
+  const [focusedCartIndex, setFocusedCartIndex] = useState(0); // For cart items
   const [modalPos, setModalPos] = useState({ r: modalLayout.length - 1, c: 0 }); // Row & Col for Modal
 
   // --- Order State ---
@@ -161,8 +162,40 @@ export default function CustomerKiosk() {
 
       // 2. Navigation outside the Modal (Grid & Sidebar)
       if (focusArea === 'CHECKOUT') {
-        if (e.key === 'ArrowLeft') setFocusArea('MENU');
+        if (e.key === 'ArrowLeft') {
+          if (cart.length > 0) {
+            setFocusArea('CART');
+            setFocusedCartIndex(0);
+          } else {
+            setFocusArea('MENU');
+          }
+        } else if (e.key === 'ArrowDown') setFocusArea('GAME');
         else if (e.key === 'Enter') handleCheckout();
+      } else if (focusArea === 'CART' && cart.length > 0) {
+        if (e.key === 'ArrowDown') {
+          setFocusedCartIndex(prev => Math.min(prev + 1, cart.length - 1));
+        } else if (e.key === 'ArrowUp') {
+          setFocusedCartIndex(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 'ArrowRight') {
+          setFocusArea('CHECKOUT');
+        } else if (e.key === 'ArrowLeft') {
+          setFocusArea('MENU');
+        } else if (e.key === 'Enter') {
+          removeFromCart(cart[focusedCartIndex].cartId);
+        }
+      } else if (focusArea === 'GAME') {
+        if (e.key === 'ArrowUp') setFocusArea('CHECKOUT');
+        else if (e.key === 'ArrowLeft') setFocusArea('BACK');
+        else if (e.key === 'Enter') {
+          const gameWindow = window.open('/dino.html', 'dinoGame', 'width=800,height=400');
+          if (gameWindow && !gameWindow.closed) {
+            gameWindow.focus();
+          }
+        }
+      } else if (focusArea === 'BACK') {
+        if (e.key === 'ArrowRight') setFocusArea('GAME');
+        else if (e.key === 'ArrowDown') setFocusArea('MENU');
+        else if (e.key === 'Enter') navigate('/');
       } else if (focusArea === 'MENU' && menuItems.length > 0 && gridRef.current) {
         const children = gridRef.current.children;
         if (children.length === 0) return;
@@ -188,7 +221,14 @@ export default function CustomerKiosk() {
         } else if (e.key === 'ArrowDown') {
           setFocusedIndex(prev => Math.min(prev + cols, menuItems.length - 1));
         } else if (e.key === 'ArrowUp') {
-          setFocusedIndex(prev => Math.max(prev - cols, 0));
+          setFocusedIndex(prev => {
+            const newIndex = Math.max(prev - cols, 0);
+            if (newIndex === 0 && prev < cols) {
+              setFocusArea('BACK');
+              return 0;
+            }
+            return newIndex;
+          });
         } else if (e.key === 'Enter') {
           handleItemTap(menuItems[focusedIndex]);
         }
@@ -202,7 +242,7 @@ export default function CustomerKiosk() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuItems, focusedIndex, customizingItem, currentIce, currentSugar, selectedToppings, modalPos, focusArea]);
+  }, [menuItems, focusedIndex, focusedCartIndex, cart, customizingItem, currentIce, currentSugar, selectedToppings, modalPos, focusArea, navigate]);
 
 
   const handleItemTap = (item) => {
@@ -319,14 +359,28 @@ export default function CustomerKiosk() {
 
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <button onClick={() => navigate('/')} style={{ padding: '10px 15px', cursor: 'pointer', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '5px' }}>← {t('common.backToPortal')}</button>
+        <button 
+          onClick={() => navigate('/')} 
+          style={{ 
+            padding: '10px 15px', 
+            cursor: 'pointer', 
+            backgroundColor: focusArea === 'BACK' ? '#aa3bff' : '#f0f0f0', 
+            color: focusArea === 'BACK' ? 'white' : 'black',
+            border: focusArea === 'BACK' ? '4px solid #aa3bff' : '1px solid #ccc', 
+            borderRadius: '5px',
+            transform: focusArea === 'BACK' ? 'scale(1.05)' : 'scale(1)',
+            boxShadow: focusArea === 'BACK' ? '0 4px 12px rgba(170, 59, 255, 0.3)' : 'none'
+          }}
+        >
+          ← {t('common.backToPortal')}
+        </button>
         <div><TextSizeToggle /></div>
       </div>
 
       <div style={{ display: 'flex', gap: '40px' }}>
         <div style={{ flex: '2' }}>
           <h1 id="menu-title">{t('customer.title')}</h1>
-          <p style={{ color: '#666', marginBottom: '20px' }}>Use Arrow Keys to navigate. Arrow Right from the edge to Pay!</p>
+          <p style={{ color: '#666', marginBottom: '20px' }}>Arrow Keys can be used to navigate the menu.</p>
           
           {loading ? <p>{t('common.loading')}</p> : (
             <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
@@ -363,7 +417,7 @@ export default function CustomerKiosk() {
           {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
             <>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>
-                {cart.map((item) => (
+                {cart.map((item, index) => (
                   <li key={item.cartId} style={{ marginBottom: '15px', borderBottom: '1px dashed #ddd', paddingBottom: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
                       <strong style={{ fontSize: '1.1em' }}>
@@ -383,6 +437,24 @@ export default function CustomerKiosk() {
                         ) : (
                           <strong>${item.finalPrice.toFixed(2)}</strong>
                         )}
+                        <button 
+                          onClick={() => removeFromCart(item.cartId)}
+                          style={{ 
+                            backgroundColor: focusArea === 'CART' && index === focusedCartIndex ? '#aa3bff' : '#ff4444', 
+                            color: 'white', 
+                            border: focusArea === 'CART' && index === focusedCartIndex ? '4px solid #aa3bff' : 'none', 
+                            borderRadius: '4px', 
+                            padding: '4px 8px', 
+                            cursor: 'pointer', 
+                            fontSize: '0.9em',
+                            fontWeight: 'bold',
+                            transform: focusArea === 'CART' && index === focusedCartIndex ? 'scale(1.1)' : 'scale(1)',
+                            boxShadow: focusArea === 'CART' && index === focusedCartIndex ? '0 4px 12px rgba(170, 59, 255, 0.3)' : 'none'
+                          }}
+                          title="Remove this item"
+                        >
+                          ×
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -420,17 +492,17 @@ export default function CustomerKiosk() {
             }
           }}
           style={{
-            backgroundColor: '#4CAF50',
+            backgroundColor: focusArea === 'GAME' ? '#aa3bff' : '#4CAF50',
             color: 'white',
             padding: '12px 24px',
-            border: 'none',
+            border: focusArea === 'GAME' ? '4px solid #aa3bff' : 'none',
             borderRadius: '8px',
             fontSize: '16px',
             cursor: 'pointer',
-            transition: 'background-color 0.3s'
+            transform: focusArea === 'GAME' ? 'scale(1.05)' : 'scale(1)',
+            boxShadow: focusArea === 'GAME' ? '0 8px 15px rgba(170, 59, 255, 0.2)' : '0 4px 6px rgba(0,0,0,0.05)',
+            transition: 'all 0.1s'
           }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
         >
           Play Boba Tea Game (Win Free Drink!)
         </button>

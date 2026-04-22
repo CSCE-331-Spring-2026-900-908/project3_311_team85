@@ -294,6 +294,34 @@ app.post('/api/menu', ensureAuthenticated, async (req, res) => {
 });
 
 // ==========================================
+//        EMPLOYEE MANAGEMENT ROUTES
+// ==========================================
+app.get('/api/employees', ensureAuthenticated, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, role FROM employees ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Employees fetch error:', err.message);
+    res.status(500).json({ error: 'Server error fetching employees' });
+  }
+});
+
+app.post('/api/employees', ensureAuthenticated, async (req, res) => {
+  const { name, role } = req.body;
+  if (!name || !role) {
+    return res.status(400).json({ error: 'Name and role are required.' });
+  }
+  try {
+    const insertSql = 'INSERT INTO employees (name, role) VALUES ($1, $2) RETURNING id, name, role';
+    const result = await pool.query(insertSql, [name, role]);
+    res.status(201).json({ employee: result.rows[0], message: 'Employee added successfully.' });
+  } catch (err) {
+    console.error('Employee insert error:', err.message);
+    res.status(500).json({ error: 'Server error adding employee' });
+  }
+});
+
+// ==========================================
 //        CASHIER CHECKOUT ROUTE
 // ==========================================
 app.post('/api/checkout', async (req, res) => {
@@ -308,7 +336,6 @@ app.post('/api/checkout', async (req, res) => {
   try {
     await client.query('BEGIN'); 
 
-    // FIXED: total_price and order_time, RETURNING order_id
     const orderInsertQuery = `
       INSERT INTO orders (total_price, order_time) 
       VALUES ($1, NOW()) 

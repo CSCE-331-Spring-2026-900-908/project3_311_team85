@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 /**
  * ManagerView Component
- * 
- * A comprehensive management dashboard for restaurant operations.
+ * * A comprehensive management dashboard for restaurant operations.
  * Features inventory management, sales reporting, menu item management,
  * and daily/hourly reports. Requires authentication for access.
  * Integrates with backend APIs for data management and reporting.
@@ -20,6 +19,8 @@ export default function ManagerView() {
   // Tab Navigation & Data State - Controls which section is active and stores data
   const [activeTab, setActiveTab] = useState('inventory'); // Current active tab
   const [inventory, setInventory] = useState([]); // Inventory items from database
+  const [menuItems, setMenuItems] = useState([]); // Menu items from database
+  const [employees, setEmployees] = useState([]); // Employee data from database
   
   // Sales Report State - Manages sales data filtering and results
   const [salesData, setSalesData] = useState([]); // Sales report results
@@ -29,7 +30,7 @@ export default function ManagerView() {
   const [xReport, setXReport] = useState(null); // Hourly breakdown report
   const [zReport, setZReport] = useState(null); // End-of-day summary report
 
-  // New Menu Item State - Form data for adding new menu items
+  // Form States
   const [newItem, setNewItem] = useState({ name: '', price: '', ingredients: '' });
 
   // Check authentication status on component mount
@@ -37,9 +38,13 @@ export default function ManagerView() {
     checkAuthStatus();
   }, []);
 
-  // Fetch inventory data when user becomes authenticated
+  // Fetch data when user becomes authenticated
   useEffect(() => {
-    if (isAuthenticated) fetchInventory();
+    if (isAuthenticated) {
+      fetchInventory();
+      fetchMenu();
+      fetchEmployees();
+    }
   }, [isAuthenticated]);
 
   // Check if user is authenticated with backend
@@ -61,7 +66,7 @@ export default function ManagerView() {
     }
   };
 
-  // Fetch current inventory levels from database
+  // --- FETCH HELPERS ---
   const fetchInventory = async () => {
     try {
       const res = await fetch('/api/inventory');
@@ -70,13 +75,28 @@ export default function ManagerView() {
     } catch (err) { console.error(err); }
   };
 
-  // Initiate Google OAuth login flow
+  const fetchMenu = async () => {
+    try {
+      const res = await fetch('/api/menu');
+      const data = await res.json();
+      setMenuItems(data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch('/api/employees');
+      const data = await res.json();
+      setEmployees(data);
+    } catch (err) { console.error(err); }
+  };
+
+  // --- AUTH HANDLERS ---
   const handleGoogleLogin = () => {
     // Redirect to Google OAuth endpoint
     window.location.href = '/auth/google';
   };
 
-  // Handle user logout and redirect to portal
   const handleLogout = async () => {
     try {
       await fetch('/auth/logout');
@@ -89,8 +109,6 @@ export default function ManagerView() {
   };
 
   // --- REPORTING FUNCTIONS ---
-  
-  // Generate sales report for selected date range
   const generateSalesReport = async () => {
     if (!salesDates.start || !salesDates.end) {
       alert('Please select both start and end dates');
@@ -126,6 +144,7 @@ export default function ManagerView() {
   };
 
   const generateZReport = async () => {
+    if(!window.confirm("WARNING: Generating a Z-Report closes out the day's financials. Continue?")) return;
     try {
       const res = await fetch('/api/reports/zreport', { method: 'POST' });
       if (!res.ok) {
@@ -141,6 +160,7 @@ export default function ManagerView() {
     }
   };
 
+  // --- FORM HANDLERS ---
   const handleAddMenuItem = async (e) => {
     e.preventDefault();
     try {
@@ -157,6 +177,7 @@ export default function ManagerView() {
       if (res.ok) {
         alert(data.message);
         setNewItem({ name: '', price: '', ingredients: '' });
+        fetchMenu();
       }
     } catch (err) { console.error(err); }
   };
@@ -234,7 +255,7 @@ export default function ManagerView() {
                       <td style={styles.td}>{row.ingredient_name || row.item_name}</td>
                       <td style={styles.td}>{row.quantity || row.stock || 0}</td>
                       <td style={styles.td}>
-                        {(Number(row.quantity) < 10) ? (
+                        {(Number(row.quantity || row.stock) < 10) ? (
                            <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>Low Stock</span>
                         ) : (
                            <span style={{ backgroundColor: '#c6f6d5', color: '#276749', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>Optimal</span>
@@ -250,19 +271,35 @@ export default function ManagerView() {
           {/* MENU MANAGEMENT TAB */}
           {activeTab === 'menu' && (
             <div>
-              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Add Menu Item</h2>
-              <form onSubmit={handleAddMenuItem}>
-                <label>Item Name:</label>
-                <input style={styles.input} type="text" required value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g., Mango Slush" />
-                
-                <label>Price ($):</label>
-                <input style={styles.input} type="number" step="0.01" required value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="5.50" />
-                
-                <label>Ingredients (Format: Name, Quantity used per order):</label>
-                <textarea style={{...styles.input, height: '100px'}} value={newItem.ingredients} onChange={e => setNewItem({...newItem, ingredients: e.target.value})} placeholder="Mango Syrup, 2.0&#10;Ice, 1.5"></textarea>
-                
-                <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Add Item to Database</button>
-              </form>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Menu Management</h2>
+              
+              <div style={{ backgroundColor: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
+                <h3 style={{ marginTop: 0, fontSize: '18px' }}>Add Menu Item</h3>
+                <form onSubmit={handleAddMenuItem}>
+                  <label>Item Name:</label>
+                  <input style={styles.input} type="text" required value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g., Mango Slush" />
+                  
+                  <label>Price ($):</label>
+                  <input style={styles.input} type="number" step="0.01" required value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} placeholder="5.50" />
+                  
+                  <label>Ingredients (Format: Name, Quantity used per order):</label>
+                  <textarea style={{...styles.input, height: '100px'}} required value={newItem.ingredients} onChange={e => setNewItem({...newItem, ingredients: e.target.value})} placeholder="Mango Syrup, 2.0&#10;Ice, 1.5"></textarea>
+                  
+                  <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Add Item to Database</button>
+                </form>
+              </div>
+
+              <h3 style={{ fontSize: '18px', marginTop: '20px' }}>Current Menu</h3>
+              <table style={styles.table}>
+                <thead><tr><th style={styles.th}>ID</th><th style={styles.th}>Drink Name</th><th style={styles.th}>Price</th></tr></thead>
+                <tbody>
+                  {menuItems.map(item => (
+                    <tr key={item.id}>
+                      <td style={styles.td}>{item.id}</td><td style={styles.td}><strong>{item.item_name}</strong></td><td style={styles.td}>${Number(item.price).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -307,7 +344,7 @@ export default function ManagerView() {
                   <button onClick={generateXReport} style={{ width: '100%', padding: '12px', backgroundColor: '#4299e1', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', marginBottom: '15px' }}>Generate X-Report (Hourly)</button>
                   {xReport && (
                     <pre style={{ backgroundColor: '#fff', padding: '15px', borderRadius: '4px', border: '1px solid #cbd5e0', fontSize: '14px' }}>
-                      {xReport.map(r => `${r.hour}:00 - ${r.order_count} orders ($${r.total_sales})\n`)}
+                      {xReport.map(r => `${r.hour}:00 - ${r.order_count} orders ($${Number(r.total_sales).toFixed(2)})\n`)}
                     </pre>
                   )}
                 </div>
@@ -328,9 +365,37 @@ export default function ManagerView() {
             </div>
           )}
 
-          {/* EMPLOYEES TAB (Placeholder for future Sprint) */}
+          {/* EMPLOYEES TAB */}
           {activeTab === 'employees' && (
-            <h2 style={{ textAlign: 'center', color: '#718096', padding: '40px' }}>Employee Management<br/><span style={{fontSize: '16px', fontWeight: 'normal'}}>Coming soon</span></h2>
+            <div>
+              <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Team Management</h2>
+              
+              {/* Employees Table */}
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>ID</th>
+                    <th style={styles.th}>Name</th>
+                    <th style={styles.th}>Role</th>
+                    <th style={styles.th}>Pay Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((emp) => (
+                    <tr key={emp.id}>
+                      <td style={styles.td}>{emp.id}</td>
+                      <td style={styles.td}><strong>{emp.name}</strong></td>
+                      <td style={styles.td}>
+                        <span style={{ backgroundColor: emp.role === 'Manager' ? '#ebf4ff' : '#edf2f7', color: emp.role === 'Manager' ? '#3182ce' : '#4a5568', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>
+                          {emp.role}
+                        </span>
+                      </td>
+                      <td style={styles.td}>${Number(emp.pay_rate || emp.payRate).toFixed(2)}/hr</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

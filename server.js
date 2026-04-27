@@ -347,6 +347,32 @@ app.post('/api/menu', ensureAuthenticated, async (req, res) => {
   }
 });
 
+// --- EMPLOYEE MANAGEMENT ROUTES ---
+
+// Get all employees
+app.get('/api/employees', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM employees ORDER BY id ASC'); 
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching employees:', err.message);
+    res.status(500).json({ error: 'Server error fetching employees' });
+  }
+});
+
+// Add a new employee
+app.post('/api/employees', async (req, res) => {
+  const { name, role, payRate } = req.body;
+  try {
+    const insertSql = `INSERT INTO employees (name, role, pay_rate) VALUES ($1, $2, $3) RETURNING id`;
+    await pool.query(insertSql, [name, role, payRate]);
+    res.status(201).json({ message: 'Employee added successfully!' });
+  } catch (err) {
+    console.error('Error adding employee:', err.message);
+    res.status(500).json({ error: 'Server error adding employee' });
+  }
+});
+
 // ==========================================
 //        CASHIER CHECKOUT ROUTE
 // ==========================================

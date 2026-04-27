@@ -6,6 +6,12 @@ import SpinningWheel from '../components/SpinningWheel';
 import { useI18n } from '../i18n/I18nProvider';
 import { useA11y } from '../a11y/A11yProvider';
 
+// --- MENU CUSTOMIZATION OPTIONS ---
+const SIZES = [
+  { name: 'Small', priceModifier: -0.50 },
+  { name: 'Regular', priceModifier: 0.00 },
+  { name: 'Large', priceModifier: 0.75 }
+];
 const TOPPINGS = [
   { id: 't1', name: 'Tapioca Boba', price: 0.50 },
   { id: 't2', name: 'Lychee Jelly', price: 0.50 },
@@ -31,6 +37,7 @@ for (let i = 0; i < TOPPINGS.length; i += 2) {
   toppingsRows.push(TOPPINGS.slice(i, i + 2).map(t => ({ type: 'TOPPING', value: t })));
 }
 const modalLayout = [
+  SIZES.map(size => ({ type: 'SIZE', value: size })),
   TEMP_LEVELS.map(temp => ({ type: 'TEMP', value: temp })),
   ICE_LEVELS.map(level => ({ type: 'ICE', value: level })),
   SUGAR_LEVELS.map(level => ({ type: 'SUGAR', value: level })),
@@ -62,6 +69,7 @@ export default function CustomerKiosk() {
 
   // --- Order State ---
   const [customizingItem, setCustomizingItem] = useState(null);
+  const [currentSize, setCurrentSize] = useState(SIZES[1]); // Default to Regular
   const [currentTemp, setCurrentTemp] = useState('Cold');
   const [currentIce, setCurrentIce] = useState('100%');
   const [currentSugar, setCurrentSugar] = useState('100%');
@@ -130,7 +138,8 @@ export default function CustomerKiosk() {
         else if (e.key === 'ArrowRight') setModalPos(prev => ({ r: prev.r, c: Math.min(modalLayout[prev.r].length - 1, prev.c + 1) }));
         else if (e.key === 'Enter') {
           const opt = modalLayout[modalPos.r][modalPos.c];
-          if (opt.type === 'TEMP') setCurrentTemp(opt.value);
+          if (opt.type === 'SIZE') setCurrentSize(opt.value);
+          else if (opt.type === 'TEMP') setCurrentTemp(opt.value);
           else if (opt.type === 'ICE') setCurrentIce(opt.value);
           else if (opt.type === 'SUGAR') setCurrentSugar(opt.value);
           else if (opt.type === 'TOPPING') toggleTopping(opt.value);
@@ -194,10 +203,15 @@ export default function CustomerKiosk() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuItems, focusedIndex, focusedCartIndex, cart, customizingItem, currentTemp, currentIce, currentSugar, selectedToppings, modalPos, focusArea, navigate]);
+  }, [menuItems, focusedIndex, focusedCartIndex, cart, customizingItem, currentSize, currentTemp, currentIce, currentSugar, selectedToppings, modalPos, focusArea, navigate]);
 
   const handleItemTap = (item) => {
-    setCustomizingItem(item); setCurrentTemp('Cold'); setCurrentIce('100%'); setCurrentSugar('100%'); setSelectedToppings([]);
+    setCustomizingItem(item); 
+    setCurrentSize(SIZES[1]); // Reset to Regular default
+    setCurrentTemp('Cold'); 
+    setCurrentIce('100%'); 
+    setCurrentSugar('100%'); 
+    setSelectedToppings([]);
     setModalPos({ r: modalLayout.length - 1, c: 0 }); 
   };
 
@@ -208,12 +222,21 @@ export default function CustomerKiosk() {
 
   const confirmCustomization = () => {
     const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
+    const finalCalculatedPrice = Math.max(0, Number(customizingItem.price) + currentSize.priceModifier + toppingTotal);
+    
     const cartItem = {
-      ...customizingItem, cartId: Date.now() + Math.random(), 
-      temperature: currentTemp, ice: currentIce, sugar: currentSugar, toppings: selectedToppings,
-      finalPrice: Number(customizingItem.price) + toppingTotal
+      ...customizingItem, 
+      cartId: Date.now() + Math.random(), 
+      size: currentSize.name,
+      temperature: currentTemp, 
+      ice: currentIce, 
+      sugar: currentSugar, 
+      toppings: selectedToppings,
+      finalPrice: finalCalculatedPrice
     };
-    setCart([...cart, cartItem]); setCustomizingItem(null); setFocusArea('CHECKOUT');
+    setCart([...cart, cartItem]); 
+    setCustomizingItem(null); 
+    setFocusArea('CHECKOUT');
   };
 
   const removeFromCart = (cartIdToRemove) => setCart(cart.filter(item => item.cartId !== cartIdToRemove));
@@ -300,31 +323,40 @@ export default function CustomerKiosk() {
             </div>
             <p style={{ color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>Keyboard Users: Use Arrow Keys to navigate, and Enter to toggle/confirm.</p>
 
+            <h3>Size</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              {SIZES.map((size, c) => (
+                <button key={size.name} onClick={() => setCurrentSize(size)} style={optionBtnStyle(currentSize.name === size.name, modalPos.r === 0 && modalPos.c === c)}>
+                  {size.name} {size.priceModifier !== 0 ? `(${size.priceModifier > 0 ? '+' : '-'}$${Math.abs(size.priceModifier).toFixed(2)})` : ''}
+                </button>
+              ))}
+            </div>
+
             <h3>Temperature</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               {TEMP_LEVELS.map((temp, c) => (
-                <button key={temp} onClick={() => setCurrentTemp(temp)} style={optionBtnStyle(currentTemp === temp, modalPos.r === 0 && modalPos.c === c)}>{temp}</button>
+                <button key={temp} onClick={() => setCurrentTemp(temp)} style={optionBtnStyle(currentTemp === temp, modalPos.r === 1 && modalPos.c === c)}>{temp}</button>
               ))}
             </div>
 
             <h3 style={{ opacity: currentTemp === 'Hot' ? 0.5 : 1 }}>Ice Level {currentTemp === 'Hot' ? '(No Ice for Hot Drinks)' : ''}</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', opacity: currentTemp === 'Hot' ? 0.5 : 1, pointerEvents: currentTemp === 'Hot' ? 'none' : 'auto' }}>
               {ICE_LEVELS.map((level, c) => (
-                <button key={level} onClick={() => setCurrentIce(level)} style={optionBtnStyle(currentIce === level, modalPos.r === 1 && modalPos.c === c)}>{level}</button>
+                <button key={level} onClick={() => setCurrentIce(level)} style={optionBtnStyle(currentIce === level, modalPos.r === 2 && modalPos.c === c)}>{level}</button>
               ))}
             </div>
             
             <h3>Sugar Level</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               {SUGAR_LEVELS.map((level, c) => (
-                <button key={level} onClick={() => setCurrentSugar(level)} style={optionBtnStyle(currentSugar === level, modalPos.r === 2 && modalPos.c === c)}>{level}</button>
+                <button key={level} onClick={() => setCurrentSugar(level)} style={optionBtnStyle(currentSugar === level, modalPos.r === 3 && modalPos.c === c)}>{level}</button>
               ))}
             </div>
             
             <h3>Add Toppings</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '30px' }}>
               {TOPPINGS.map((topping, i) => {
-                const r = 3 + Math.floor(i / 2); // Row 3 or 4 now
+                const r = 4 + Math.floor(i / 2); // Shifted down for Size row
                 const c = i % 2; 
                 return (
                   <button key={topping.id} onClick={() => toggleTopping(topping)} style={optionBtnStyle(selectedToppings.some(t => t.id === topping.id), modalPos.r === r && modalPos.c === c)}>
@@ -344,7 +376,7 @@ export default function CustomerKiosk() {
                 boxShadow: (modalPos.r === modalLayout.length - 1) ? '0 8px 20px rgba(170, 59, 255, 0.4)' : 'none'
               }}
             >
-              Add to Order - ${(Number(customizingItem.price) + selectedToppings.reduce((s, t) => s + t.price, 0)).toFixed(2)}
+              Add to Order - ${(Math.max(0, Number(customizingItem.price) + currentSize.priceModifier + selectedToppings.reduce((s, t) => s + t.price, 0))).toFixed(2)}
             </button>
           </div>
         </div>
@@ -377,6 +409,9 @@ export default function CustomerKiosk() {
             <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
               {menuItems.map((item, index) => {
                 const isFocused = focusArea === 'MENU' && index === focusedIndex;
+                // High-quality generic boba fallback image
+                const fallbackImg = 'https://images.unsplash.com/photo-1558855567-dbd7f12e2c2f?auto=format&fit=crop&w=400&q=80';
+                
                 return (
                   <div 
                     key={item.id} 
@@ -384,12 +419,23 @@ export default function CustomerKiosk() {
                     style={{ 
                       border: isFocused ? '4px solid #aa3bff' : '1px solid #ddd', 
                       transform: isFocused ? 'scale(1.05)' : 'scale(1)', 
-                      padding: '30px 20px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', 
+                      padding: '20px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', 
                       backgroundColor: isFocused ? '#f9f5ff' : '#fff', 
-                      boxShadow: isFocused ? '0 8px 15px rgba(170, 59, 255, 0.2)' : '0 4px 6px rgba(0,0,0,0.05)'
+                      boxShadow: isFocused ? '0 8px 15px rgba(170, 59, 255, 0.2)' : '0 4px 6px rgba(0,0,0,0.05)',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center'
                     }}
                   >
-                    <h3 style={{ margin: '0 0 15px 0' }}>{item.item_name}</h3>
+                    {/* Picture Container */}
+                    <div style={{ width: '100%', height: '150px', backgroundColor: '#f0f0f0', borderRadius: '8px', marginBottom: '15px', overflow: 'hidden' }}>
+                      <img 
+                        src={item.image_url || fallbackImg} 
+                        alt={item.item_name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+                        onError={(e) => { e.target.src = fallbackImg }}
+                      />
+                    </div>
+                    
+                    <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1em' }}>{item.item_name}</h3>
                     <strong style={{ color: '#2c3e50', fontSize: '1.2em' }}>${Number(item.price).toFixed(2)}</strong>
                   </div>
                 )
@@ -434,7 +480,7 @@ export default function CustomerKiosk() {
                         </div>
                       </div>
                       <div style={{ fontSize: '0.9em', color: '#666', paddingLeft: '10px', borderLeft: '2px solid #ccc' }}>
-                        Temp: {item.temperature} | Ice: {item.ice} | Sugar: {item.sugar}
+                        Size: {item.size} | Temp: {item.temperature} | Ice: {item.ice} | Sugar: {item.sugar}
                         {item.toppings.map(t => <div key={t.id}>+ {t.name}</div>)}
                       </div>
                     </li>

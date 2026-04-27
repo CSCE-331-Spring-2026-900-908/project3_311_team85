@@ -32,6 +32,7 @@ export default function ManagerView() {
 
   // Form States
   const [newItem, setNewItem] = useState({ name: '', price: '', ingredients: '' });
+  const [newEmployee, setNewEmployee] = useState({ name: '', role: 'Cashier', payRate: '' });
 
   // Check authentication status on component mount
   useEffect(() => {
@@ -179,6 +180,22 @@ export default function ManagerView() {
         setNewItem({ name: '', price: '', ingredients: '' });
         fetchMenu();
       }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAddEmployee = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEmployee)
+      });
+      if (res.ok) {
+        alert("Employee added successfully!");
+        setNewEmployee({ name: '', role: 'Cashier', payRate: '' });
+        fetchEmployees();
+      } else { alert("Failed to add employee."); }
     } catch (err) { console.error(err); }
   };
 
@@ -370,31 +387,66 @@ export default function ManagerView() {
             <div>
               <h2 style={{ fontSize: '22px', color: '#2d3748', margin: '0 0 20px 0' }}>Team Management</h2>
               
-              {/* Employees Table */}
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Role</th>
-                    <th style={styles.th}>Pay Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((emp) => (
-                    <tr key={emp.id}>
-                      <td style={styles.td}>{emp.id}</td>
-                      <td style={styles.td}><strong>{emp.name}</strong></td>
-                      <td style={styles.td}>
-                        <span style={{ backgroundColor: emp.role === 'Manager' ? '#ebf4ff' : '#edf2f7', color: emp.role === 'Manager' ? '#3182ce' : '#4a5568', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>
-                          {emp.role}
-                        </span>
-                      </td>
-                      <td style={styles.td}>${Number(emp.pay_rate || emp.payRate).toFixed(2)}/hr</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ display: 'flex', gap: '25px', alignItems: 'flex-start' }}>
+                
+                {/* Left Side: Add Employee Card */}
+                <div style={{ flex: '1', backgroundColor: '#f7fafc', padding: '25px', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '280px' }}>
+                  <h3 style={{ marginTop: 0, fontSize: '18px', color: '#2d3748', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', marginBottom: '20px' }}>
+                    ➕ Add New Hire
+                  </h3>
+                  <form onSubmit={handleAddEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>Full Name:</label>
+                      <input style={{...styles.input, marginBottom: 0}} type="text" required value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} placeholder="e.g., John Doe" />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>Role:</label>
+                      <select style={{...styles.input, marginBottom: 0}} value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})}>
+                        <option value="Cashier">Cashier</option>
+                        <option value="Manager">Manager</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '600', color: '#4a5568' }}>Hourly Rate ($):</label>
+                      <input style={{...styles.input, marginBottom: 0}} type="number" step="0.50" required value={newEmployee.payRate} onChange={e => setNewEmployee({...newEmployee, payRate: e.target.value})} placeholder="15.00" />
+                    </div>
+                    <button type="submit" style={{ padding: '12px', marginTop: '10px', backgroundColor: '#3182ce', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', transition: 'background 0.2s' }}>
+                      Hire Employee
+                    </button>
+                  </form>
+                </div>
+
+                {/* Right Side: Employees Table */}
+                <div style={{ flex: '2', backgroundColor: '#fff', borderRadius: '8px' }}>
+                  <table style={{...styles.table, marginTop: 0}}>
+                    <thead>
+                      <tr>
+                        <th style={{...styles.th, paddingTop: '10px'}}>ID</th>
+                        <th style={{...styles.th, paddingTop: '10px'}}>Name</th>
+                        <th style={{...styles.th, paddingTop: '10px'}}>Role</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employees.length === 0 ? (
+                        <tr><td colSpan="4" style={{...styles.td, textAlign: 'center', color: '#718096'}}>No employees found.</td></tr>
+                      ) : (
+                        employees.map((emp) => (
+                          <tr key={emp.id}>
+                            <td style={styles.td}>{emp.id}</td>
+                            <td style={styles.td}><strong>{emp.name}</strong></td>
+                            <td style={styles.td}>
+                              <span style={{ backgroundColor: emp.role === 'Manager' ? '#ebf4ff' : '#edf2f7', color: emp.role === 'Manager' ? '#3182ce' : '#4a5568', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: '600' }}>
+                                {emp.role}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
             </div>
           )}
         </div>

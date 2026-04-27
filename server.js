@@ -239,15 +239,15 @@ app.post('/api/chat', async (req, res) => {
 // ==========================================
 
 // 1. Get Sales Report (Date Range)
-app.get('/api/reports/sales', async (req, res) => {
+app.get('/api/reports/sales', ensureAuthenticated, async (req, res) => {
   const { start, end } = req.query;
   try {
     const sql = `
       SELECT m.item_name, COUNT(oi.menu_id) as quantity_sold, SUM(m.price) as total_revenue 
       FROM menu m 
       JOIN order_items oi ON m.id = oi.menu_id 
-      JOIN orders o ON oi.order_id = o.order_id  -- FIXED: o.order_id instead of o.id
-      WHERE DATE(o.order_time) BETWEEN $1 AND $2 -- FIXED: order_time
+      JOIN orders o ON oi.order_id = o.order_id  
+      WHERE DATE(o.order_time) BETWEEN $1 AND $2 
       GROUP BY m.id, m.item_name 
       ORDER BY quantity_sold DESC
     `;
@@ -260,14 +260,14 @@ app.get('/api/reports/sales', async (req, res) => {
 });
 
 // 2. Get X-Report (Current Day Hourly Breakdown)
-app.get('/api/reports/xreport', async (req, res) => {
+app.get('/api/reports/xreport', ensureAuthenticated, async (req, res) => {
   try {
     const hourlySql = `
-      SELECT EXTRACT(HOUR FROM order_time) as hour, -- FIXED: order_time
+      SELECT EXTRACT(HOUR FROM order_time) as hour, 
       COUNT(*) as order_count, 
-      SUM(total_price) as total_sales -- FIXED: total_price
+      SUM(total_price) as total_sales 
       FROM orders 
-      WHERE DATE(order_time) = CURRENT_DATE -- FIXED: order_time
+      WHERE DATE(order_time) = CURRENT_DATE 
       GROUP BY hour ORDER BY hour
     `;
     const result = await pool.query(hourlySql);
@@ -279,7 +279,7 @@ app.get('/api/reports/xreport', async (req, res) => {
 });
 
 // 3. Generate & Save Z-Report (End of Day)
-app.post('/api/reports/zreport', async (req, res) => {
+app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -347,31 +347,30 @@ app.post('/api/menu', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// --- EMPLOYEE MANAGEMENT ROUTES ---
-
-// Get all employees
-app.get('/api/employees', async (req, res) => {
+// 5. Get Employees List
+app.get('/api/employees', ensureAuthenticated, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM employees ORDER BY id ASC'); 
+    const result = await pool.query('SELECT * FROM employees ORDER BY id ASC');
     res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching employees:', err.message);
+    console.error("Fetch Employees Error:", err.message);
     res.status(500).json({ error: 'Server error fetching employees' });
   }
 });
 
-// Add a new employee
-app.post('/api/employees', async (req, res) => {
+// 6. Add New Employee
+app.post('/api/employees', ensureAuthenticated, async (req, res) => {
   const { name, role, payRate } = req.body;
   try {
-    const insertSql = `INSERT INTO employees (name, role, pay_rate) VALUES ($1, $2, $3) RETURNING id`;
-    await pool.query(insertSql, [name, role, payRate]);
-    res.status(201).json({ message: 'Employee added successfully!' });
+    const insertSql = `INSERT INTO employees (name, role, pay_rate) VALUES ($1, $2, $3) RETURNING *`;
+    const result = await pool.query(insertSql, [name, role, payRate]);
+    res.status(201).json({ message: 'Employee added successfully', employee: result.rows[0] });
   } catch (err) {
-    console.error('Error adding employee:', err.message);
+    console.error("Add Employee Error:", err.message);
     res.status(500).json({ error: 'Server error adding employee' });
   }
 });
+
 
 // ==========================================
 //        CASHIER CHECKOUT ROUTE

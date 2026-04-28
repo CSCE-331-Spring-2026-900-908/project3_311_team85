@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useA11y } from '../a11y/A11yProvider';
 
 /**
  * ManagerView Component
@@ -10,6 +12,8 @@ import { useNavigate } from 'react-router-dom';
  */
 export default function ManagerView() {
   const navigate = useNavigate();
+  const { textSize } = useA11y();
+  const baseFontSize = `${textSize}em`;
   
   // Authentication State - Manages user login status and user information
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -201,7 +205,7 @@ export default function ManagerView() {
 
   // --- STYLES ---
   const styles = {
-    page: { backgroundColor: '#fcfcfc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333' },
+    page: { backgroundColor: '#fcfcfc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333', fontSize: baseFontSize, position: 'relative' },
     mainHeading: { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '36px', textAlign: 'center', marginBottom: '40px', color: '#1a1a1a' },
     card: { backgroundColor: '#fff', borderRadius: '12px', padding: '30px', boxShadow: '0 8px 30px rgba(0,0,0,0.04)', border: '1px solid #f0f0f0' },
     floatingNav: { 
@@ -249,6 +253,7 @@ export default function ManagerView() {
 
   return (
     <div style={{ ...styles.page, padding: '60px 20px 120px' }}>
+      <TextSizeToggle />
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <h1 style={styles.mainHeading}>Dashboard & Operations</h1>
 

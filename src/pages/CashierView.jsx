@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import TextSizeToggle from '../components/TextSizeToggle';
+import { useA11y } from '../a11y/A11yProvider';
 
 // Premium toppings available for customization with pricing
 const TOPPINGS = [
@@ -23,6 +25,8 @@ const SUGAR_LEVELS = ['0%', '50%', '100%', '120%'];
  */
 export default function CashierView() {
   const navigate = useNavigate();
+  const { textSize } = useA11y();
+  const baseFontSize = `${textSize}em`;
   
   // Core POS state
   const [menuItems, setMenuItems] = useState([]); // Available menu items from API
@@ -137,7 +141,9 @@ export default function CashierView() {
   });
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7f6' }}>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7f6', fontSize: baseFontSize, position: 'relative' }}>
+      
+      <TextSizeToggle />
       
       {/* CUSTOMIZATION OVERLAY - Modal for customizing selected menu item */}
       {customizingItem && (

@@ -74,7 +74,7 @@ export default function MenuBoard() {
   }, []);
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontSize: baseFontSize }}>
+    <div style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontSize: baseFontSize, position: 'relative' }}>
       <TextSizeToggle />
       
       <button 

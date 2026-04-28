@@ -22,7 +22,8 @@ export default function Portal() {
       minHeight: '100vh', 
       backgroundColor: '#fafafa', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      fontSize: baseFontSize
+      fontSize: baseFontSize,
+      position: 'relative'
     }}>
       {/* Header Section */}
       <header style={{ 

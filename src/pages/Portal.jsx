@@ -58,7 +58,7 @@ export default function Portal() {
               }}
             />
             <div style={{ display: 'none', alignItems: 'center', justifyContent: 'center', width: '50px', height: '50px', backgroundColor: '#ff6b6b', borderRadius: '10px', color: '#fff', fontWeight: 'bold', fontSize: '20px' }}>
-              RB
+              OB
             </div>
             <div>
               <h1 style={{ 
@@ -67,7 +67,7 @@ export default function Portal() {
                 color: '#000000',
                 fontWeight: '700'
               }}>
-                Reveille Bubble Tea
+                OCTAGON Bubble Tea
               </h1>
               <p style={{ 
                 margin: '2px 0 0 0', 

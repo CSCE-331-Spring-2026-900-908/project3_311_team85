@@ -3,23 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import TextSizeToggle from '../components/TextSizeToggle';
 import { useA11y } from '../a11y/A11yProvider';
 
-// Premium toppings available for customization with pricing
+// --- MENU CUSTOMIZATION OPTIONS ---
+const SIZES = [
+  { name: 'Small', priceModifier: -0.50 },
+  { name: 'Regular', priceModifier: 0.00 },
+  { name: 'Large', priceModifier: 0.75 }
+];
 const TOPPINGS = [
   { id: 't1', name: 'Tapioca Boba', price: 0.50 },
   { id: 't2', name: 'Lychee Jelly', price: 0.50 },
   { id: 't3', name: 'Crystal Boba', price: 0.75 },
   { id: 't4', name: 'Cheese Foam', price: 1.00 },
 ];
-
-// Available ice and sugar levels for drink customization
+const TEMP_LEVELS = ['Cold', 'Hot'];
 const ICE_LEVELS = ['0%', '50%', '100%', '120%'];
 const SUGAR_LEVELS = ['0%', '50%', '100%', '120%'];
 
 /**
  * CashierView Component
- * 
- * A Point of Sale (POS) interface for cashiers to take customer orders.
- * Features menu item selection, customization options (ice, sugar, toppings),
+ * * A Point of Sale (POS) interface for cashiers to take customer orders.
+ * Features menu item selection, customization options (size, temp, ice, sugar, toppings),
  * ticket management, and checkout functionality. Integrates with backend
  * for menu data and order processing.
  */
@@ -35,6 +38,8 @@ export default function CashierView() {
 
   // Customization modal state
   const [customizingItem, setCustomizingItem] = useState(null); // Item being customized
+  const [currentSize, setCurrentSize] = useState(SIZES[1]); // Selected size (Default to Regular)
+  const [currentTemp, setCurrentTemp] = useState('Cold'); // Selected temperature
   const [currentIce, setCurrentIce] = useState('100%'); // Selected ice level
   const [currentSugar, setCurrentSugar] = useState('100%'); // Selected sugar level
   const [selectedToppings, setSelectedToppings] = useState([]); // Selected premium toppings
@@ -52,11 +57,20 @@ export default function CashierView() {
     fetchMenu();
   }, []);
 
+  // Hot Drink Auto-Zero Ice Logic
+  useEffect(() => {
+    if (currentTemp === 'Hot') {
+      setCurrentIce('0%');
+    }
+  }, [currentTemp]);
+
   // --- CUSTOMIZATION LOGIC ---
   
   // Open customization modal for selected item and reset customization options
   const handleItemTap = (item) => {
     setCustomizingItem(item);
+    setCurrentSize(SIZES[1]); // Reset to Regular default
+    setCurrentTemp('Cold');
     setCurrentIce('100%');
     setCurrentSugar('100%');
     setSelectedToppings([]);
@@ -74,11 +88,14 @@ export default function CashierView() {
   // Add customized item to current ticket with all modifications and calculated price
   const confirmCustomization = () => {
     const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
-    const finalPrice = Number(customizingItem.price) + toppingTotal;
+    // Add base price + size modifier + toppings
+    const finalPrice = Math.max(0, Number(customizingItem.price) + currentSize.priceModifier + toppingTotal);
 
     const ticketItem = {
       ...customizingItem,
       ticketId: Date.now() + Math.random(), // Unique identifier for ticket item
+      size: currentSize.name,
+      temperature: currentTemp,
       ice: currentIce,
       sugar: currentSugar,
       toppings: selectedToppings,
@@ -148,14 +165,30 @@ export default function CashierView() {
       {/* CUSTOMIZATION OVERLAY - Modal for customizing selected menu item */}
       {customizingItem && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '15px', marginBottom: '20px' }}>
               <h2 style={{ margin: 0 }}>Add {customizingItem.item_name}</h2>
               <button onClick={() => setCustomizingItem(null)} style={{ background: 'none', border: 'none', fontSize: '2em', cursor: 'pointer', color: '#666' }}>×</button>
             </div>
 
-            <h3 style={{ marginTop: 0 }}>Ice Level</h3>
+            <h3 style={{ marginTop: 0 }}>Size</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              {SIZES.map(size => (
+                <button key={size.name} onClick={() => setCurrentSize(size)} style={optionBtnStyle(currentSize.name === size.name)}>
+                  {size.name} {size.priceModifier !== 0 ? `(${size.priceModifier > 0 ? '+' : '-'}$${Math.abs(size.priceModifier).toFixed(2)})` : ''}
+                </button>
+              ))}
+            </div>
+
+            <h3>Temperature</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              {TEMP_LEVELS.map(temp => (
+                <button key={temp} onClick={() => setCurrentTemp(temp)} style={optionBtnStyle(currentTemp === temp)}>{temp}</button>
+              ))}
+            </div>
+
+            <h3 style={{ opacity: currentTemp === 'Hot' ? 0.5 : 1 }}>Ice Level {currentTemp === 'Hot' ? '(No Ice for Hot Drinks)' : ''}</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', opacity: currentTemp === 'Hot' ? 0.5 : 1, pointerEvents: currentTemp === 'Hot' ? 'none' : 'auto' }}>
               {ICE_LEVELS.map(level => (
                 <button key={level} onClick={() => setCurrentIce(level)} style={optionBtnStyle(currentIce === level)}>{level}</button>
               ))}
@@ -181,7 +214,7 @@ export default function CashierView() {
             </div>
 
             <button onClick={confirmCustomization} style={{ width: '100%', padding: '15px', backgroundColor: '#2b6cb0', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1.2em', fontWeight: 'bold', cursor: 'pointer' }}>
-              Add to Ticket - ${(Number(customizingItem.price) + selectedToppings.reduce((s, t) => s + t.price, 0)).toFixed(2)}
+              Add to Ticket - ${(Math.max(0, Number(customizingItem.price) + currentSize.priceModifier + selectedToppings.reduce((s, t) => s + t.price, 0))).toFixed(2)}
             </button>
           </div>
         </div>
@@ -235,8 +268,9 @@ export default function CashierView() {
                         <button onClick={() => removeFromTicket(item.ticketId)} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
                       </div>
                     </div>
-                    {/* Visual Receipt Metadata */}
+                    {/* Visual Receipt Metadata updated with Size and Temp */}
                     <div style={{ fontSize: '0.85rem', color: '#666', paddingLeft: '8px', borderLeft: '2px solid #cbd5e0' }}>
+                      Size: {item.size} | Temp: {item.temperature} <br/>
                       Ice: {item.ice} | Sugar: {item.sugar}
                       {item.toppings.map(t => <div key={t.id}>+ {t.name}</div>)}
                     </div>

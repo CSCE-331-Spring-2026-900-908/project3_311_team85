@@ -26,8 +26,28 @@ const pool = new Pool({
 
 // Test Database Connection on Startup
 pool.connect()
-  .then(() => console.log('Successfully logged into TAMU database!'))
+  .then(async () => {
+    console.log('Successfully logged into TAMU database!');
+    
+    // Initialize database tables if they don't exist
+    await initializeDatabase();
+  })
   .catch(err => console.error('Login failed:', err.message));
+
+// Initialize Database Tables
+async function initializeDatabase() {
+  try {
+    // Just reset the sequence to prevent duplicate key errors
+    const maxIdResult = await pool.query('SELECT COALESCE(MAX(id), 0) as max_id FROM employees');
+    const maxId = maxIdResult.rows[0].max_id;
+    
+    await pool.query(`ALTER SEQUENCE employees_id_seq RESTART WITH ${maxId + 1}`);
+    console.log('Database initialized - employees sequence set to start from', maxId + 1);
+    
+  } catch (err) {
+    console.error('Error initializing database:', err.message);
+  }
+}
 
 // Setup __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);

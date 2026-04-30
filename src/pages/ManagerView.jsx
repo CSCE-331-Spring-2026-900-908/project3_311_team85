@@ -189,18 +189,42 @@ export default function ManagerView() {
 
   const handleAddEmployee = async (e) => {
     e.preventDefault();
+    
+    // Validate input
+    if (!newEmployee.name.trim()) {
+      alert("Please enter a valid name");
+      return;
+    }
+    if (!newEmployee.payRate || parseFloat(newEmployee.payRate) <= 0) {
+      alert("Please enter a valid pay rate");
+      return;
+    }
+    
     try {
       const res = await fetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newEmployee)
+        body: JSON.stringify({
+          name: newEmployee.name.trim(),
+          role: newEmployee.role,
+          payRate: parseFloat(newEmployee.payRate)
+        })
       });
+      
+      const data = await res.json();
+      
       if (res.ok) {
         alert("Employee added successfully!");
         setNewEmployee({ name: '', role: 'Cashier', payRate: '' });
         fetchEmployees();
-      } else { alert("Failed to add employee."); }
-    } catch (err) { console.error(err); }
+      } else {
+        alert(`Failed to add employee: ${data.error || 'Unknown error'}`);
+        console.error('Add Employee Error:', data);
+      }
+    } catch (err) {
+      console.error('Network error:', err);
+      alert('Network error. Please try again.');
+    }
   };
 
   // --- STYLES ---

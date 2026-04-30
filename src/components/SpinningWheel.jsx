@@ -18,49 +18,75 @@ export default function SpinningWheel({ onSpinComplete, hasSpunToday }) {
   const [selectedSegment, setSelectedSegment] = useState(null);
   const wheelRef = useRef(null);
 
+  const getSegmentAtPointer = (finalRotation) => {
+    const segmentAngle = 360 / WHEEL_SEGMENTS.length;
+    // The pointer is at the top of the wheel (12 o'clock).
+    // SVG draws segment 0 starting at 3 o'clock (0°), so 12 o'clock = 270° in SVG space.
+    // When the wheel has rotated by `finalRotation` degrees, we need to find which
+    // segment has been carried to the 270° position.
+    // We reverse the rotation to find what SVG angle is now at the top:
+    //   svgAngleAtPointer = (270 - finalRotation + 360*n) mod 360
+    // Then find which segment index owns that angle:
+    //   index = floor(svgAngleAtPointer / segmentAngle)
+    const svgAngleAtPointer = ((270 - finalRotation) % 360 + 360) % 360;
+    const index = Math.floor(svgAngleAtPointer / segmentAngle);
+    return WHEEL_SEGMENTS[index];
+  };
+
   const spinWheel = () => {
     if (isSpinning || hasSpunToday) return;
 
     setIsSpinning(true);
     setSelectedSegment(null);
 
-    // Calculate random spin (3-5 full rotations plus random segment)
-    const minSpins = 3;
-    const maxSpins = 5;
-    const spins = minSpins + Math.random() * (maxSpins - minSpins);
-    const randomSegment = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
     const segmentAngle = 360 / WHEEL_SEGMENTS.length;
-    const targetAngle = spins * 360 + randomSegment * segmentAngle;
 
-    setRotation(prev => prev + targetAngle);
+    // Pick a random winning segment index
+    const winningIndex = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
 
-    // Determine winning segment
+    // Calculate the exact SVG angle we need at the pointer (270°) for this segment.
+    // Each segment spans [index * segmentAngle, (index+1) * segmentAngle).
+    // Place the center of the winning segment at 270°:
+    const winningSegmentCenter = winningIndex * segmentAngle + segmentAngle / 2;
+    // How much do we rotate the wheel so that angle ends up at 270°?
+    // finalRotation ≡ 270 - winningSegmentCenter  (mod 360)
+    const targetRest = ((270 - winningSegmentCenter) % 360 + 360) % 360;
+
+    // Spin at least 5 full rotations for visual effect, landing on targetRest
+    const currentRest = ((rotation % 360) + 360) % 360;
+    const delta = (targetRest - currentRest + 360) % 360;
+    const totalRotation = rotation + 5 * 360 + delta;
+
+    setRotation(totalRotation);
+
+    // After the animation, read the winner back from the final angle
+    // so the displayed prize always matches where the pointer actually landed.
     setTimeout(() => {
-      const winningIndex = (WHEEL_SEGMENTS.length - (randomSegment % WHEEL_SEGMENTS.length)) % WHEEL_SEGMENTS.length;
-      const winner = WHEEL_SEGMENTS[winningIndex];
+      const winner = getSegmentAtPointer(totalRotation);
+      console.log('Winner at pointer:', winner.text);
       setSelectedSegment(winner);
       setIsSpinning(false);
       onSpinComplete(winner);
-    }, 4000);
+    }, 4050);
   };
 
   const createWheelSegments = () => {
     const segmentAngle = 360 / WHEEL_SEGMENTS.length;
-    
+
     return WHEEL_SEGMENTS.map((segment, index) => {
       const startAngle = index * segmentAngle;
       const endAngle = (index + 1) * segmentAngle;
-      
+
       const startAngleRad = (startAngle * Math.PI) / 180;
       const endAngleRad = (endAngle * Math.PI) / 180;
-      
+
       const largeArcFlag = segmentAngle > 180 ? 1 : 0;
-      
+
       const x1 = 200 + 180 * Math.cos(startAngleRad);
       const y1 = 200 + 180 * Math.sin(startAngleRad);
       const x2 = 200 + 180 * Math.cos(endAngleRad);
       const y2 = 200 + 180 * Math.sin(endAngleRad);
-      
+
       const pathData = [
         `M 200 200`,
         `L ${x1} ${y1}`,
@@ -114,7 +140,7 @@ export default function SpinningWheel({ onSpinComplete, hasSpunToday }) {
           {createWheelSegments()}
           <circle cx="200" cy="200" r="30" fill="#fff" stroke="#333" strokeWidth="2" />
         </svg>
-        
+
         <div className="wheel-pointer">
           <div className="pointer-triangle"></div>
         </div>

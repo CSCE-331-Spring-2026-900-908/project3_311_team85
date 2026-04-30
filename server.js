@@ -187,7 +187,18 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
+// FIXED: Now filters out deactivated items for the Customer Kiosk
 app.get('/api/menu', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM menu WHERE is_active = TRUE ORDER BY id ASC'); 
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.get('/api/menu/all', ensureAuthenticated, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM menu ORDER BY id ASC'); 
     res.json(result.rows);
@@ -307,13 +318,14 @@ app.post('/api/reports/zreport', ensureAuthenticated, async (req, res) => {
 
 // 4. Add New Menu Item & Ingredients
 app.post('/api/menu', ensureAuthenticated, async (req, res) => {
-  const { itemName, price, ingredientsText } = req.body;
+  const { itemName, price, ingredientsText, imageUrl } = req.body; 
   const client = await pool.connect();
+  
   try {
     await client.query('BEGIN');
     
-    const insertMenu = `INSERT INTO menu (item_name, price) VALUES ($1, $2) RETURNING id`;
-    const menuResult = await client.query(insertMenu, [itemName, price]);
+    const insertMenu = `INSERT INTO menu (item_name, price, image_url) VALUES ($1, $2, $3) RETURNING id`;
+    const menuResult = await client.query(insertMenu, [itemName, price, imageUrl || null]); 
     const newMenuId = menuResult.rows[0].id;
 
     if (ingredientsText) {

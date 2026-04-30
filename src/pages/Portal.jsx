@@ -22,7 +22,8 @@ export default function Portal() {
       minHeight: '100vh', 
       backgroundColor: '#fafafa', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      fontSize: baseFontSize
+      fontSize: baseFontSize,
+      position: 'relative'
     }}>
       {/* Header Section */}
       <header style={{ 
@@ -57,21 +58,21 @@ export default function Portal() {
               }}
             />
             <div style={{ display: 'none', alignItems: 'center', justifyContent: 'center', width: '50px', height: '50px', backgroundColor: '#ff6b6b', borderRadius: '10px', color: '#fff', fontWeight: 'bold', fontSize: '20px' }}>
-              RB
+              OB
             </div>
             <div>
               <h1 style={{ 
                 margin: 0, 
                 fontSize: '1.8em', 
-                color: '#2c3e50',
+                color: '#000000',
                 fontWeight: '700'
               }}>
-                Reveille Bubble Tea
+                OCTAGON Bubble Tea
               </h1>
               <p style={{ 
                 margin: '2px 0 0 0', 
                 fontSize: '0.9em', 
-                color: '#7f8c8d',
+                color: '#000000',
                 fontWeight: '400'
               }}>
                 Premium Bubble Tea Experience
@@ -93,7 +94,7 @@ export default function Portal() {
       }}>
         <h2 style={{ 
           fontSize: '2.5em', 
-          color: '#2c3e50', 
+          color: '#000000', 
           margin: '0 0 15px 0',
           fontWeight: '700'
         }}>
@@ -101,7 +102,7 @@ export default function Portal() {
         </h2>
         <p style={{ 
           fontSize: '1.2em', 
-          color: '#7f8c8d', 
+          color: '#000000', 
           margin: '0 0 30px 0',
           maxWidth: '600px',
           marginLeft: 'auto',
@@ -170,14 +171,14 @@ export default function Portal() {
             <h3 style={{ 
               margin: '0 0 10px 0', 
               fontSize: '1.2em', 
-              color: '#2c3e50',
+              color: '#000000',
               fontWeight: '600'
             }}>
               {t('portal.manager')}
             </h3>
             <p style={{ 
               margin: '0 0 15px 0', 
-              color: '#7f8c8d', 
+              color: '#000000', 
               lineHeight: '1.4',
               fontSize: '0.9em',
               flex: 1
@@ -187,7 +188,7 @@ export default function Portal() {
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              color: '#3498db',
+              color: '#000000',
               fontWeight: '600',
               fontSize: '0.85em'
             }}>
@@ -242,14 +243,14 @@ export default function Portal() {
             <h3 style={{ 
               margin: '0 0 10px 0', 
               fontSize: '1.2em', 
-              color: '#2c3e50',
+              color: '#000000',
               fontWeight: '600'
             }}>
               {t('portal.cashier')}
             </h3>
             <p style={{ 
               margin: '0 0 15px 0', 
-              color: '#7f8c8d', 
+              color: '#000000', 
               lineHeight: '1.4',
               fontSize: '0.9em',
               flex: 1
@@ -259,7 +260,7 @@ export default function Portal() {
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              color: '#27ae60',
+              color: '#000000',
               fontWeight: '600',
               fontSize: '0.85em'
             }}>
@@ -314,14 +315,14 @@ export default function Portal() {
             <h3 style={{ 
               margin: '0 0 10px 0', 
               fontSize: '1.2em', 
-              color: '#2c3e50',
+              color: '#000000',
               fontWeight: '600'
             }}>
               {t('portal.customerKiosk')}
             </h3>
             <p style={{ 
               margin: '0 0 15px 0', 
-              color: '#7f8c8d', 
+              color: '#000000', 
               lineHeight: '1.4',
               fontSize: '0.9em',
               flex: 1
@@ -331,7 +332,7 @@ export default function Portal() {
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              color: '#e74c3c',
+              color: '#000000',
               fontWeight: '600',
               fontSize: '0.85em'
             }}>
@@ -386,14 +387,14 @@ export default function Portal() {
             <h3 style={{ 
               margin: '0 0 10px 0', 
               fontSize: '1.2em', 
-              color: '#2c3e50',
+              color: '#000000',
               fontWeight: '600'
             }}>
               {t('portal.menuBoard')}
             </h3>
             <p style={{ 
               margin: '0 0 15px 0', 
-              color: '#7f8c8d', 
+              color: '#000000', 
               lineHeight: '1.4',
               fontSize: '0.9em',
               flex: 1
@@ -403,7 +404,7 @@ export default function Portal() {
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              color: '#f39c12',
+              color: '#000000',
               fontWeight: '600',
               fontSize: '0.85em'
             }}>

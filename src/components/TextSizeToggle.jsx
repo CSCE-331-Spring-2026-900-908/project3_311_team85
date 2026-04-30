@@ -28,7 +28,7 @@ export default function TextSizeToggle({ style }) {
   };
 
   return (
-    <div style={{ position: 'absolute', top: 16, right: 16, ...style }}>
+    <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 9999, ...style }}>
       {/* Main toggle button - shows "Aa" to indicate text size control */}
       <button
         type="button"
@@ -38,11 +38,13 @@ export default function TextSizeToggle({ style }) {
         style={{
           padding: '10px 12px',
           borderRadius: 10,
-          border: '1px solid rgba(0,0,0,0.15)',
-          background: 'rgba(255,255,255,0.9)',
+          border: '2px solid rgba(0,0,0,0.3)',
+          background: 'rgba(255,255,255,0.95)',
           cursor: 'pointer',
           fontWeight: 800,
           letterSpacing: 0.2,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          minWidth: '50px',
         }}
       >
         Aa
@@ -61,7 +63,7 @@ export default function TextSizeToggle({ style }) {
             border: '1px solid rgba(0,0,0,0.15)',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            zIndex: 1000, // Ensure slider appears above other content
+            zIndex: 10000, // Ensure slider appears above other content
             minWidth: '200px',
           }}
         >

@@ -59,6 +59,7 @@ export default function CustomerKiosk() {
   const [showWheel, setShowWheel] = useState(false);
   const [hasSpunToday, setHasSpunToday] = useState(false);
   const [wheelPrize, setWheelPrize] = useState(null);
+  const [hasFreeDrinkCredit, setHasFreeDrinkCredit] = useState(false);
 
   // --- Accessibility Navigation State ---
   const gridRef = useRef(null);
@@ -116,7 +117,9 @@ export default function CustomerKiosk() {
             
             return newCart;
           } else {
-            alert(message + ' Add a drink to your cart first to make it free!');
+            // No drinks in cart to make free - store the credit for next drink
+            setHasFreeDrinkCredit(true);
+            alert(message + ' You have a free drink credit! Your next drink will be free.');
             return prevCart;
           }
         });
@@ -222,17 +225,29 @@ export default function CustomerKiosk() {
 
   const confirmCustomization = () => {
     const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
-    const finalCalculatedPrice = Math.max(0, Number(customizingItem.price) + currentSize.priceModifier + toppingTotal);
+    let finalPrice = Number(customizingItem.price) + toppingTotal;
+    let item_name = customizingItem.item_name;
+    let isFreeDrink = false;
+    let originalPrice = null;
+    
+    // Apply free drink credit if available
+    if (hasFreeDrinkCredit) {
+      originalPrice = finalPrice;
+      finalPrice = 0.00;
+      isFreeDrink = true;
+      item_name = item_name + ' (FREE!)';
+      setHasFreeDrinkCredit(false); // Consume the credit
+      
+      // Show notification that free drink was applied
+      setTimeout(() => {
+        alert('Free drink applied! Your ' + customizingItem.item_name + ' is now free! Original price: $' + originalPrice.toFixed(2));
+      }, 100);
+    }
     
     const cartItem = {
-      ...customizingItem, 
-      cartId: Date.now() + Math.random(), 
-      size: currentSize.name,
-      temperature: currentTemp, 
-      ice: currentIce, 
-      sugar: currentSugar, 
-      toppings: selectedToppings,
-      finalPrice: finalCalculatedPrice
+      ...customizingItem, cartId: Date.now() + Math.random(), 
+      temperature: currentTemp, ice: currentIce, sugar: currentSugar, toppings: selectedToppings,
+      finalPrice, item_name, isFreeDrink, originalPrice
     };
     setCart([...cart, cartItem]); 
     setCustomizingItem(null); 
@@ -450,6 +465,24 @@ export default function CustomerKiosk() {
           {/* CART CARD */}
           <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '12px', border: '1px solid #eee', height: 'fit-content', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
             <h2 style={{ marginTop: 0, borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>{t('customer.yourOrder')}</h2>
+            {hasFreeDrinkCredit && (
+              <div style={{ 
+                backgroundColor: '#e8f5e9', 
+                padding: '12px', 
+                borderRadius: '8px', 
+                marginBottom: '15px', 
+                border: '1px solid #4CAF50',
+                textAlign: 'center'
+              }}>
+                <span style={{ 
+                  color: '#2e7d32', 
+                  fontWeight: 'bold', 
+                  fontSize: '1.1em' 
+                }}>
+                  🎉 Free Drink Credit Available! Your next drink will be free!
+                </span>
+              </div>
+            )}
             {cart.length === 0 ? <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('customer.emptyCart')}</p> : (
               <>
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', maxHeight: '400px', overflowY: 'auto' }}>

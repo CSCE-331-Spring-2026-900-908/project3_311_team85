@@ -60,6 +60,11 @@ export default function CustomerKiosk() {
   const [hasSpunToday, setHasSpunToday] = useState(false);
   const [wheelPrize, setWheelPrize] = useState(null);
   const [hasFreeDrinkCredit, setHasFreeDrinkCredit] = useState(false);
+  const [activeWheelPrizes, setActiveWheelPrizes] = useState({
+    freeTopping: false,
+    freeUpgrade: false,
+    bobaBonus: false
+  });
 
   // --- Accessibility Navigation State ---
   const gridRef = useRef(null);
@@ -224,11 +229,14 @@ export default function CustomerKiosk() {
   };
 
   const confirmCustomization = () => {
-    const toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
+    let processedToppings = [...selectedToppings];
+    let processedSize = currentSize;
+    let toppingTotal = selectedToppings.reduce((sum, t) => sum + t.price, 0);
     let finalPrice = Number(customizingItem.price) + toppingTotal;
     let item_name = customizingItem.item_name;
     let isFreeDrink = false;
     let originalPrice = null;
+    let prizeApplied = false;
     
     // Apply free drink credit if available
     if (hasFreeDrinkCredit) {
@@ -244,10 +252,68 @@ export default function CustomerKiosk() {
       }, 100);
     }
     
+    // Apply wheel prizes
+    if (activeWheelPrizes.freeTopping && processedToppings.length > 0) {
+      // Make the most expensive topping free
+      const mostExpensiveTopping = processedToppings.reduce((max, t) => t.price > max.price ? t : max);
+      toppingTotal -= mostExpensiveTopping.price;
+      finalPrice -= mostExpensiveTopping.price;
+      item_name += ' (Free ' + mostExpensiveTopping.name + '!)';
+      prizeApplied = true;
+      setActiveWheelPrizes(prev => ({ ...prev, freeTopping: false }));
+      
+      setTimeout(() => {
+        alert('Free topping applied! Your ' + mostExpensiveTopping.name + ' is now free!');
+      }, 100);
+    }
+    
+    if (activeWheelPrizes.freeUpgrade) {
+      // Upgrade to the next size if possible
+      const sizeIndex = SIZES.findIndex(s => s.name === processedSize);
+      if (sizeIndex < SIZES.length - 1) {
+        const currentSizeObj = SIZES[sizeIndex];
+        const nextSizeObj = SIZES[sizeIndex + 1];
+        finalPrice += (nextSizeObj.priceModifier - currentSizeObj.priceModifier);
+        processedSize = nextSizeObj.name;
+        item_name += ' (Free Upgrade to ' + nextSizeObj.name + '!)';
+        prizeApplied = true;
+        setActiveWheelPrizes(prev => ({ ...prev, freeUpgrade: false }));
+        
+        setTimeout(() => {
+          alert('Free upgrade applied! Your drink is now ' + nextSizeObj.name + '!');
+        }, 100);
+      }
+    }
+    
+    if (activeWheelPrizes.bobaBonus) {
+      // Add extra boba if boba is already selected, otherwise add it for free
+      const bobaTopping = TOPPINGS.find(t => t.name.includes('Boba'));
+      if (bobaTopping) {
+        const existingBoba = processedToppings.find(t => t.name.includes('Boba'));
+        if (existingBoba) {
+          item_name += ' (Extra Boba!)';
+          prizeApplied = true;
+        } else {
+          // Add free boba
+          processedToppings.push(bobaTopping);
+          item_name += ' (Free Boba!)';
+          prizeApplied = true;
+        }
+        setActiveWheelPrizes(prev => ({ ...prev, bobaBonus: false }));
+        
+        setTimeout(() => {
+          alert('Boba bonus applied! Extra boba added to your drink!');
+        }, 100);
+      }
+    }
+    
     const cartItem = {
       ...customizingItem, cartId: Date.now() + Math.random(), 
-      temperature: currentTemp, ice: currentIce, sugar: currentSugar, toppings: selectedToppings,
-      finalPrice, item_name, isFreeDrink, originalPrice
+      temperature: currentTemp, ice: currentIce, sugar: currentSugar, 
+      toppings: processedToppings, 
+      finalPrice, item_name, isFreeDrink, originalPrice,
+      // Ensure size is a string, not an object
+      size: processedSize
     };
     setCart([...cart, cartItem]); 
     setCustomizingItem(null); 
@@ -291,13 +357,29 @@ export default function CustomerKiosk() {
   const handleWheelComplete = (prize) => {
     setWheelPrize(prize); setHasSpunToday(true);
     switch (prize.type) {
-      case 'percentage': setAppliedCoupon({ code: 'WHEEL_BONUS', description: `${prize.text} from Wheel of Fortune!`, type: 'percentage', discount: prize.value }); break;
-      case 'fixed': setAppliedCoupon({ code: 'WHEEL_BONUS', description: `${prize.text} from Wheel of Fortune!`, type: 'fixed', discount: prize.value }); break;
-      case 'free_topping': alert(`Congratulations! You won a ${prize.text}! Add a drink to your cart and we'll add a free topping.`); break;
-      case 'free_upgrade': alert(`Congratulations! You won a ${prize.text}! Your next drink will be upgraded for free.`); break;
-      case 'boba_bonus': alert(`Congratulations! You won ${prize.text}! You get extra boba on your next drink!`); break;
-      case 'nothing': alert('Better luck next time! Try again tomorrow.'); break;
-      default: break;
+      case 'percentage': 
+        setAppliedCoupon({ code: 'WHEEL_BONUS', description: `${prize.text} from Wheel of Fortune!`, type: 'percentage', discount: prize.value }); 
+        break;
+      case 'fixed': 
+        setAppliedCoupon({ code: 'WHEEL_BONUS', description: `${prize.text} from Wheel of Fortune!`, type: 'fixed', discount: prize.value }); 
+        break;
+      case 'free_topping': 
+        setActiveWheelPrizes(prev => ({ ...prev, freeTopping: true }));
+        alert(`Congratulations! You won a ${prize.text}! Add a drink to your cart and we'll add a free topping.`);
+        break;
+      case 'free_upgrade': 
+        setActiveWheelPrizes(prev => ({ ...prev, freeUpgrade: true }));
+        alert(`Congratulations! You won a ${prize.text}! Your next drink will be upgraded for free.`);
+        break;
+      case 'boba_bonus': 
+        setActiveWheelPrizes(prev => ({ ...prev, bobaBonus: true }));
+        alert(`Congratulations! You won ${prize.text}! You get extra boba on your next drink!`);
+        break;
+      case 'nothing': 
+        alert('Better luck next time! Try again tomorrow.'); 
+        break;
+      default: 
+        break;
     }
   };
 
@@ -513,7 +595,7 @@ export default function CustomerKiosk() {
                         </div>
                       </div>
                       <div style={{ fontSize: '0.9em', color: '#666', paddingLeft: '10px', borderLeft: '2px solid #ccc' }}>
-                        Size: {item.size} | Temp: {item.temperature} | Ice: {item.ice} | Sugar: {item.sugar}
+                        Size: {typeof item.size === 'object' ? item.size.name : item.size} | Temp: {item.temperature} | Ice: {item.ice} | Sugar: {item.sugar}
                         {item.toppings.map(t => <div key={t.id}>+ {t.name}</div>)}
                       </div>
                     </li>

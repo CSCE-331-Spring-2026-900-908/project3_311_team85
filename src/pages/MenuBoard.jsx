@@ -36,7 +36,7 @@ export default function MenuBoard() {
   
   // Menu categorization with pagination
   const categorizeMenuItems = (items) => {
-    const itemsPerPage = 8; // Show 8 items per page for better visibility
+    const itemsPerPage = 11; // Show 11 items per page for equal distribution of 22 drinks
     const pages = [];
     
     for (let i = 0; i < items.length; i += itemsPerPage) {

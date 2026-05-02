@@ -81,7 +81,12 @@ app.get('/auth/google/callback',
     passport.authenticate('google', { 
         successRedirect: '/manager',
         failureRedirect: '/login?error=access_denied'
-    })
+    }),
+    (req, res) => {
+        console.log('=== OAuth Callback Success ===');
+        console.log('User Email:', req.user?.email);
+        console.log('Redirecting to success page...');
+    }
 );
 
 app.get('/login', (req, res) => {

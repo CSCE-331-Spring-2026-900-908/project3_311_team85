@@ -12,10 +12,6 @@ const { Pool } = pkg;
 // Load environment variables from .env
 dotenv.config();
 
-// Trust proxy for HTTPS in production
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
 
 // Initialize PostgreSQL Connection Pool
 const pool = new Pool({
@@ -60,6 +56,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5173;
+
+// Trust proxy for HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // Session middleware
 app.use(session({

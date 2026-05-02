@@ -95,8 +95,8 @@ passport.use(new GoogleStrategy({
   clientID: googleClientId,
   clientSecret: googleClientSecret,
   callbackURL: process.env.NODE_ENV === 'production' 
-    ? "http://localhost:5173/auth/google/callback"
-    : "https://point-of-sale-system-team-85.onrender.com/auth/google/callback"
+    ? "https://point-of-sale-system-team-85.onrender.com/auth/google/callback"
+    : "http://localhost:5173/auth/google/callback"
 }, (accessToken, refreshToken, profile, done) => {
   const userEmail = profile.emails[0].value;
   
@@ -153,7 +153,7 @@ app.get('/auth/google/callback',
     console.log('Authenticated User:', req.user);
     
     // Successful authentication, redirect to manager view on frontend
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://point-of-sale-system-team-85.onrender.com' : 'http://localhost:5173';
     console.log('Redirecting to:', `${frontendUrl}/manager`);
     res.redirect(`${frontendUrl}/manager`);
   }
@@ -169,12 +169,12 @@ app.get('/auth/logout', (req, res, next) => {
 // Login route for unauthorized users
 app.get('/login', (req, res) => {
   if (req.isAuthenticated()) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://point-of-sale-system-team-85.onrender.com' : 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/manager`);
   }
   
   // Serve login page or redirect to frontend login
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://point-of-sale-system-team-85.onrender.com' : 'http://localhost:5173';
   res.redirect(`${frontendUrl}/login${req.query.error ? '?error=' + req.query.error : ''}`);
 });
 

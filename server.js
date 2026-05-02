@@ -94,7 +94,9 @@ const backendUrl = process.env.BACKEND_URL || 'http://localhost:5173';
 passport.use(new GoogleStrategy({
   clientID: googleClientId,
   clientSecret: googleClientSecret,
-  callbackURL: `${backendUrl}/auth/google/callback`
+  callbackURL: process.env.NODE_ENV === 'production' 
+    ? "https://point-of-sale-system-team-85.onrender.com/auth/google/callback"
+    : "http://localhost:5173/auth/google/callback"
 }, (accessToken, refreshToken, profile, done) => {
   const userEmail = profile.emails[0].value;
   

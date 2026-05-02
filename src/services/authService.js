@@ -20,6 +20,11 @@ export const authService = {
     window.location.href = `${API_BASE_URL}/auth/google`;
   },
 
+  // Initiate Google OAuth login with redirect callback
+  loginWithRedirect(redirectPath = '/') {
+    window.location.href = `${API_BASE_URL}/auth/google?redirect=${encodeURIComponent(redirectPath)}`;
+  },
+
   // Logout user
   async logout() {
     try {

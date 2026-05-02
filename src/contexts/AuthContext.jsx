@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = () => {
-    authService.login();
+    authService.loginWithRedirect('/');
   };
 
   const logout = async () => {

@@ -17,6 +17,11 @@ export default function Portal() {
   
   const baseFontSize = `${textSize}em`; // Dynamic font size based on user preference
   
+  // Log portal page load for deployment tracking
+  console.log('=== Portal Page Loaded ===');
+  console.log('Load Time:', new Date().toISOString());
+  console.log('Environment:', process.env.NODE_ENV || 'development');
+  
   return (
     <div style={{ 
       minHeight: '100vh', 

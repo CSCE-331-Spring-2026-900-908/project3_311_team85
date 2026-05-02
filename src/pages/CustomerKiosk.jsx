@@ -270,18 +270,24 @@ export default function CustomerKiosk() {
     if (activeWheelPrizes.freeUpgrade) {
       // Upgrade to the next size if possible
       const sizeIndex = SIZES.findIndex(s => s.name === processedSize);
-      if (sizeIndex < SIZES.length - 1) {
+      if (sizeIndex >= 0 && sizeIndex < SIZES.length - 1) {
         const currentSizeObj = SIZES[sizeIndex];
         const nextSizeObj = SIZES[sizeIndex + 1];
-        finalPrice += (nextSizeObj.priceModifier - currentSizeObj.priceModifier);
-        processedSize = nextSizeObj.name;
-        item_name += ' (Free Upgrade to ' + nextSizeObj.name + '!)';
-        prizeApplied = true;
-        setActiveWheelPrizes(prev => ({ ...prev, freeUpgrade: false }));
         
-        setTimeout(() => {
-          alert('Free upgrade applied! Your drink is now ' + nextSizeObj.name + '!');
-        }, 100);
+        // Ensure both size objects exist and have priceModifier
+        if (currentSizeObj && nextSizeObj && 
+            typeof currentSizeObj.priceModifier !== 'undefined' && 
+            typeof nextSizeObj.priceModifier !== 'undefined') {
+          finalPrice += (nextSizeObj.priceModifier - currentSizeObj.priceModifier);
+          processedSize = nextSizeObj.name;
+          item_name += ' (Free Upgrade to ' + nextSizeObj.name + '!)';
+          prizeApplied = true;
+          setActiveWheelPrizes(prev => ({ ...prev, freeUpgrade: false }));
+          
+          setTimeout(() => {
+            alert('Free upgrade applied! Your drink is now ' + nextSizeObj.name + '!');
+          }, 100);
+        }
       }
     }
     

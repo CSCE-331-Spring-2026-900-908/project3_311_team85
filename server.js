@@ -12,6 +12,11 @@ const { Pool } = pkg;
 // Load environment variables from .env
 dotenv.config();
 
+// Trust proxy for HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Initialize PostgreSQL Connection Pool
 const pool = new Pool({
   host: 'csce-315-db.engr.tamu.edu', 
@@ -56,12 +61,16 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5173;
 
-// Session configuration
+// Session middleware
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
 
 // Passport initialization
@@ -146,16 +155,25 @@ app.get('/auth/google',
 
 app.get('/auth/google/callback',
   passport.authenticate('google', { 
-    failureRedirect: '/login?error=access_denied'
+    failureRedirect: '/login?error=access_denied',
+    successReturnToOrRedirect: '/manager'
   }),
   (req, res) => {
     console.log('=== OAuth Callback Success ===');
     console.log('Authenticated User:', req.user);
     
-    // Successful authentication, redirect to manager view on frontend
-    const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://point-of-sale-system-team-85.onrender.com' : 'http://localhost:5173';
-    console.log('Redirecting to:', `${frontendUrl}/manager`);
-    res.redirect(`${frontendUrl}/manager`);
+    // Ensure session is saved before redirecting
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.redirect('/login?error=session_error');
+      }
+      
+      // Successful authentication, redirect to manager view on frontend
+      const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://point-of-sale-system-team-85.onrender.com' : 'http://localhost:5173';
+      console.log('Redirecting to:', `${frontendUrl}/manager`);
+      res.redirect(`${frontendUrl}/manager`);
+    });
   }
 );
 
@@ -173,9 +191,54 @@ app.get('/login', (req, res) => {
     return res.redirect(`${frontendUrl}/manager`);
   }
   
-  // Serve login page or redirect to frontend login
-  const frontendUrl = process.env.NODE_ENV === 'production' ? 'https://point-of-sale-system-team-85.onrender.com' : 'http://localhost:5173';
-  res.redirect(`${frontendUrl}/login${req.query.error ? '?error=' + req.query.error : ''}`);
+  // Serve a simple login page to break the redirect loop
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Login Required</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 50px; text-align: center; background: #f5f5f5; }
+        .login-box { 
+          max-width: 400px; 
+          margin: 100px auto; 
+          padding: 30px; 
+          background: white; 
+          border-radius: 8px; 
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn { 
+          display: inline-block; 
+          padding: 12px 24px; 
+          background: #4285f4; 
+          color: white; 
+          text-decoration: none; 
+          border-radius: 4px; 
+          margin: 10px 0;
+          font-weight: bold;
+        }
+        .btn:hover { background: #357ae8; }
+        .error { 
+          color: #d32f2f; 
+          background: #ffebee; 
+          padding: 10px; 
+          border-radius: 4px; 
+          margin: 10px 0; 
+        }
+        h2 { color: #333; margin-bottom: 20px; }
+        p { color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="login-box">
+        <h2>Manager Access Required</h2>
+        <p>Please sign in with your authorized Google account to access the manager page.</p>
+        ${req.query.error === 'access_denied' ? '<div class="error">Access denied. You are not authorized to access this page.</div>' : ''}
+        <a href="/auth/google" class="btn">Sign in with Google</a>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 // API route to check authentication status
